@@ -2203,6 +2203,10 @@ static int gui_wrap_D(int id, int dd)
 
 int gui_stick(int id, int a, float v, int bump)
 {
+#ifdef __MOBILE__
+    if (config_tst_d(CONFIG_JOYSTICK_DEVICE, 0))
+        return 0;
+#endif
     int jd = 0;
 
     if (!bump)

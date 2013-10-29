@@ -211,6 +211,18 @@ static int name_buttn(int b, int d)
     return 1;
 }
 
+#ifdef __MOBILE__
+int name_click(int b, int d)
+{
+    if (gui_click(b, d))
+        return st_buttn(config_get_d(CONFIG_JOYSTICK_BUTTON_A), 1);
+    else {
+        SDL_StopTextInput();
+        return 1;
+    }
+}
+#endif
+
 /*---------------------------------------------------------------------------*/
 
 struct state st_name = {
@@ -221,7 +233,11 @@ struct state st_name = {
     shared_point,
     shared_stick,
     shared_angle,
+#ifndef __MOBILE__
     shared_click,
+#else
+    name_click,
+#endif
     name_keybd,
     name_buttn
 };

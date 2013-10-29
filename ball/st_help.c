@@ -111,11 +111,19 @@ static int help_menu(int id)
 
 static int page_rules(int id)
 {
+#ifndef __MOBILE__
     const char *s0 = _(
         "Move the mouse or joystick\\"
         "or use keyboard arrows to\\"
         "tilt the floor causing the\\"
         "ball to roll.\\");
+#else
+    const char *s0 = _(
+        "Lean the device up/down and\\"
+        "left/right or use gamepad to\\"
+        "tilt the floor causing the\\"
+        "ball to roll.\\");
+#endif
     const char *s1 = _(
         "Roll over coins to collect\\"
         "them.  Collect coins to\\"
@@ -169,13 +177,23 @@ static int page_rules(int id)
 
         gui_filler(jd);
     }
+#ifdef __MOBILE__
+        gui_space(id);
+        gui_multi(id, "This game is distributed under the GPL license.\\"
+                      "For source code, visit neverball.drodin.com", GUI_SML, gui_yel, gui_wht);
+#endif
     return id;
 }
 
 static int page_controls(int id)
 {
+#ifndef __MOBILE__
     const char *s_rotate  = _("Left and right mouse buttons rotate the view.\\"
                               "Hold Shift for faster view rotation.");
+#else
+    const char *s_rotate  = _("Touch left/right side of the screen or use\\"
+                              "Gamepad 2nd analog stick to rotate the view.");
+#endif
     const char *s_exit    = _("Exit / Pause");
     const char *s_camera1 = _("Chase Camera");
     const char *s_camera2 = _("Lazy Camera");
@@ -202,13 +220,31 @@ static int page_controls(int id)
         if ((kd = gui_harray(jd)))
         {
             gui_label(kd, s_exit,   GUI_SML, gui_wht, gui_wht);
+#ifndef __MOBILE__
             gui_label(kd, SDL_GetKeyName(k_exit), GUI_SML, gui_yel, gui_yel);
+#else
+#ifdef __BLACKBERRY__
+            gui_label(kd, "Swipe Back / Start Btn.", GUI_SML, gui_yel, gui_yel);
+#else
+            gui_label(kd, "Back Key / Start Btn.", GUI_SML, gui_yel, gui_yel);
+#endif
+#endif
         }
         if ((kd = gui_harray(jd)))
         {
+#ifndef __MOBILE__
             gui_label(kd, s_camera1, GUI_SML, gui_wht, gui_wht);
             gui_label(kd, SDL_GetKeyName(k_cam1), GUI_SML, gui_yel, gui_yel);
+#else
+            gui_label(kd, "Switch Camera", GUI_SML, gui_wht, gui_wht);
+#ifdef __BLACKBERRY__
+            gui_label(kd, "Swipe Down / X Btn.", GUI_SML, gui_yel, gui_yel);
+#else
+            gui_label(kd, "Menu Key / X Btn.", GUI_SML, gui_yel, gui_yel);
+#endif
+#endif
         }
+#ifndef __MOBILE__
         if ((kd = gui_harray(jd)))
         {
             gui_label(kd, s_camera2, GUI_SML, gui_wht, gui_wht);
@@ -224,6 +260,7 @@ static int page_controls(int id)
             gui_label(kd, s_shot, GUI_SML, gui_wht, gui_wht);
             gui_label(kd, SDL_GetKeyName(k_shot), GUI_SML, gui_yel, gui_yel);
         }
+#endif
 
         gui_set_rect(jd, GUI_ALL);
     }
@@ -231,6 +268,11 @@ static int page_controls(int id)
     gui_space(id);
 
     gui_multi(id, s_rotate, GUI_SML, gui_wht, gui_wht);
+
+#ifdef __BLACKBERRY__
+    gui_space(id);
+    gui_multi(id, "To \"Swipe Back\" swipe over the\\bottom bezel from center to left.", GUI_SML, gui_wht, gui_wht);
+#endif
 
     return id;
 }
@@ -244,10 +286,17 @@ static int page_modes(int id)
     if ((jd = gui_vstack(id)))
     {
         gui_label(jd, _("Normal Mode"), GUI_SML, 0, 0);
+#ifndef __MOBILE__
         gui_multi(jd,
                   _("Finish a level before the time runs out.\\"
                     "You need to collect coins in order to open the goal."),
                   GUI_SML, gui_wht, gui_wht);
+#else
+        gui_multi(jd,
+                  _("Finish a level before the time runs out.\\"
+                    "You need to collect coins to open the goal."),
+                  GUI_SML, gui_wht, gui_wht);
+#endif
 
         gui_set_rect(jd, GUI_ALL);
     }
@@ -257,11 +306,19 @@ static int page_modes(int id)
     if ((jd = gui_vstack(id)))
     {
         gui_label(jd, _("Challenge Mode"), GUI_SML, 0, 0);
+#ifndef __MOBILE__
         gui_multi(jd,
                   _("Start playing from the first level of the set.\\"
                     "You start with only three balls, do not lose them.\\"
                     "Earn an extra ball for each 100 coins collected."),
                   GUI_SML, gui_wht, gui_wht);
+#else
+        gui_multi(jd,
+                  _("Start playing from the first level of the set.\\"
+                    "You start with only 3 balls, do not lose them.\\"
+                    "Earn an extra ball for each 100 coins collected."),
+                  GUI_SML, gui_wht, gui_wht);
+#endif
 
         gui_set_rect(jd, GUI_ALL);
     }
@@ -276,11 +333,19 @@ static int page_tricks(int id)
         "Get rolling and take aim\\"
         "at the angle. You may be able\\"
         "to reach new places.\\");
+#ifndef __MOBILE__
     const char *s1 = _(
         "Tilting in 2 directions increases\\"
         "the slope. Use the manual camera\\"
         "and turn the camera by 45\\"
         "degrees for best results.\\");
+#else
+    const char *s1 = _(
+        "Tilting in 2 directions increases\\"
+        "the slope. Use manual camera\\"
+        "mode and turn the camera by 45\\"
+        "degrees for best results.\\");
+#endif
 
     int w = config_get_d(CONFIG_WIDTH);
     int h = config_get_d(CONFIG_HEIGHT);

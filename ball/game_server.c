@@ -881,6 +881,12 @@ void game_set_goal(void)
 
 void game_set_x(float k)
 {
+#ifdef __MOBILE__
+    if (config_tst_d(CONFIG_JOYSTICK_DEVICE, 0)) {
+        k = k*2 - 1;
+        (k > 1) ? 1 : ((k < -1) ? -1 : k);
+    }
+#endif
     input_set_x(-ANGLE_BOUND * k);
 
     input_set_s(config_get_d(CONFIG_JOYSTICK_RESPONSE) * 0.001f);
@@ -888,6 +894,12 @@ void game_set_x(float k)
 
 void game_set_z(float k)
 {
+#ifdef __MOBILE__
+    if (config_tst_d(CONFIG_JOYSTICK_DEVICE, 0)) {
+        k = k*2;
+        (k > 1) ? 1 : ((k < -1) ? -1 : k);
+    }
+#endif
     input_set_z(+ANGLE_BOUND * k);
 
     input_set_s(config_get_d(CONFIG_JOYSTICK_RESPONSE) * 0.001f);

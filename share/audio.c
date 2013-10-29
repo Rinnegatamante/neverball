@@ -15,8 +15,13 @@
 #include <SDL.h>
 
 #define OV_EXCLUDE_STATIC_CALLBACKS
+#ifndef __MOBILE__
 #include <vorbis/codec.h>
 #include <vorbis/vorbisfile.h>
+#else
+#include <ivorbiscodec.h>
+#include <ivorbisfile.h>
+#endif
 
 #include <string.h>
 #include <stdlib.h>
@@ -92,7 +97,11 @@ static int voice_step(struct voice *V, float volume, Uint8 *stream, int length)
     {
         /* Read audio from the stream. */
 
+#ifndef __MOBILE__
         if ((n = (int) ov_read(&V->vf, ibuf, r, order, 2, 1, &b)) > 0)
+#else
+        if ((n = (int) ov_read(&V->vf, ibuf, r, &b)) > 0)
+#endif
         {
             /* Mix mono audio. */
 

@@ -248,7 +248,7 @@ const char *curr_scr(void)
 {
     static char buf[8];
 
-    sprintf(buf, "%d", score_v[hole][player]);
+    sprintf(buf, "%d", score_v[hole][player]+1);
 
     return buf;
 }

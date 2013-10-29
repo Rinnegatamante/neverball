@@ -88,7 +88,7 @@ static int handle_key_dn(SDL_Event *e)
 
     /* SDL made me do it. */
 #ifdef __APPLE__
-    if (c == SDLK_q && e->key.keysym.mod & KMOD_META)
+    if (c == SDLK_q && e->key.keysym.mod & KMOD_GUI)
         return 0;
 #endif
 #ifdef _WIN32
@@ -486,7 +486,22 @@ int main(int argc, char *argv[])
 
     if (config_get_d(CONFIG_JOYSTICK) && SDL_NumJoysticks() > 0)
     {
+#ifndef __MOBILE__
         joy = SDL_JoystickOpen(config_get_d(CONFIG_JOYSTICK_DEVICE));
+#else
+        int joystick_id = SDL_NumJoysticks()-1;
+        joy = SDL_JoystickOpen(joystick_id);
+        config_set_d(CONFIG_JOYSTICK_DEVICE, joystick_id);
+        if (joystick_id == 0) { //accelerometer
+            config_set_d(CONFIG_JOYSTICK_AXIS_U, -1);
+        } else { //gamepad
+            if (SDL_JoystickNumAxes(joy)>3)
+                config_set_d(CONFIG_JOYSTICK_AXIS_U, 3);
+            else
+                config_set_d(CONFIG_JOYSTICK_AXIS_U, 2);
+            config_set_d(CONFIG_JOYSTICK_AXIS_U_INVERT, 1);
+        }
+#endif
         if (joy)
             SDL_JoystickEventState(SDL_ENABLE);
     }

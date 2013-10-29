@@ -334,7 +334,11 @@ static int play_loop_gui(void)
 static int play_loop_enter(struct state *st, struct state *prev)
 {
     rot_init();
+#ifndef __MOBILE__
     fast_rotate = 0;
+#else
+    fast_rotate = 1;
+#endif
 
     if (prev == &st_pause)
         return 0;
@@ -421,6 +425,13 @@ static void play_loop_timer(int id, float dt)
 
 static void play_loop_point(int id, int x, int y, int dx, int dy)
 {
+#ifdef __MOBILE__
+    if (x < config_get_d(CONFIG_WIDTH)/2)
+        rot_dir = DIR_R;
+    else
+        rot_dir = DIR_L;
+    return;
+#endif
     game_set_pos(dx, dy);
 }
 
@@ -445,19 +456,27 @@ static int play_loop_click(int b, int d)
 {
     if (d)
     {
+#ifndef __MOBILE__
         if (config_tst_d(CONFIG_MOUSE_CAMERA_R, b))
             rot_set(DIR_R, 1.0f, 0);
         if (config_tst_d(CONFIG_MOUSE_CAMERA_L, b))
             rot_set(DIR_L, 1.0f, 0);
+#else
+        rot_set(rot_dir, 1.0f, 0);
+#endif
 
         click_camera(b);
     }
     else
     {
+#ifndef __MOBILE__
         if (config_tst_d(CONFIG_MOUSE_CAMERA_R, b))
             rot_clr(DIR_R);
         if (config_tst_d(CONFIG_MOUSE_CAMERA_L, b))
             rot_clr(DIR_L);
+#else
+        rot_clr(rot_dir);
+#endif
     }
 
     return 1;

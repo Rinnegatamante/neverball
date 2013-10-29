@@ -924,6 +924,10 @@ static int flyby_buttn(int b, int d)
 
 static int stroke_rotate = 0;
 static int stroke_mag    = 0;
+#ifdef __MOBILE__
+static int skip_point    = 1;
+static int stroke        = 0;
+#endif
 
 static int stroke_enter(struct state *st, struct state *prev)
 {
@@ -973,8 +977,21 @@ static void stroke_timer(int id, float dt)
 
 static void stroke_point(int id, int x, int y, int dx, int dy)
 {
+#ifdef __MOBILE__
+    if (x<100*config_get_d(CONFIG_WIDTH)/1024 && y<400*config_get_d(CONFIG_HEIGHT)/600 && y>200*config_get_d(CONFIG_HEIGHT)/600) {
+        stroke = 1;
+        return;
+    }
+
+    if (skip_point)
+        return;
+    
+    game_set_rot(-dx);
+    game_set_mag(dy);
+#else
     game_set_rot(dx);
     game_set_mag(dy);
+#endif
 }
 
 static void stroke_stick(int id, int a, float v, int bump)
@@ -987,7 +1004,19 @@ static void stroke_stick(int id, int a, float v, int bump)
 
 static int stroke_click(int b, int d)
 {
+#ifndef __MOBILE__
     return (d && b == SDL_BUTTON_LEFT) ? goto_state(&st_roll) : 1;
+#else
+    if (d == SDL_RELEASED) {
+        skip_point = 1;
+        if (stroke) {
+            stroke = 0;
+            return goto_state(&st_roll);
+        }
+    } else
+        skip_point = 0;
+    return 1;
+#endif
 }
 
 static int stroke_buttn(int b, int d)

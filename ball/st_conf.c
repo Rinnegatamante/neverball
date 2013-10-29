@@ -151,6 +151,7 @@ static int conf_gui(void)
 
         conf_header(id, _("Options"), GUI_BACK);
 
+#ifndef __MOBILE__
         conf_state(id, _("Graphics"), _("Configure"), CONF_VIDEO);
 
         gui_space(id);
@@ -159,6 +160,7 @@ static int conf_gui(void)
                     mouse_id, ARRAYSIZE(mouse_id));
 
         gui_space(id);
+#endif
 
         conf_slider(id, _("Sound Volume"), CONF_SOUND_VOLUME, sound,
                     sound_id, ARRAYSIZE(sound_id));

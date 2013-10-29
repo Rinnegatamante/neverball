@@ -508,6 +508,10 @@ static void set_speed(int d)
 
 static void demo_play_stick(int id, int a, float v, int bump)
 {
+#ifdef __MOBILE__
+    if (config_tst_d(CONFIG_JOYSTICK_DEVICE, 0))
+        return;
+#endif
     if (!bump)
         return;
 
@@ -597,10 +601,17 @@ static int demo_end_gui(void)
 
     if ((id = gui_vstack(0)))
     {
+#ifndef __MOBILE__
         if (demo_paused)
             kd = gui_label(id, _("Replay Paused"), GUI_LRG, gui_gry, gui_red);
         else
             kd = gui_label(id, _("Replay Ends"),   GUI_LRG, gui_gry, gui_red);
+#else
+        if (demo_paused)
+            kd = gui_label(id, _("Paused"), GUI_LRG, gui_gry, gui_red);
+        else
+            kd = gui_label(id, _("End"),   GUI_LRG, gui_gry, gui_red);
+#endif
 
         if ((jd = gui_harray(id)))
         {

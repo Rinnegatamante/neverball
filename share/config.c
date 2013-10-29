@@ -400,6 +400,30 @@ void config_load(void)
 
         dirty = 0;
     }
+
+#ifdef __MOBILE__
+    config_set_d(CONFIG_FULLSCREEN, 1);
+    config_set_d(CONFIG_REFLECTION, 0); //FIXME: Poor performance with reflections enabled!
+    config_set_d(CONFIG_SHADOW, 0); //FIXME: Some GLES code is buggy with shadows enabled!
+    config_set_d(CONFIG_KEY_CAMERA_TOGGLE, SDLK_MENU);
+#endif
+
+#ifdef __BLACKBERRY__
+    config_set_d(CONFIG_JOYSTICK_BUTTON_A, 0);
+    config_set_d(CONFIG_JOYSTICK_BUTTON_B, 1);
+    config_set_d(CONFIG_JOYSTICK_BUTTON_X, 3);
+    config_set_d(CONFIG_JOYSTICK_BUTTON_Y, 4); //unused
+    config_set_d(CONFIG_JOYSTICK_BUTTON_L1, 13); //swap 
+    config_set_d(CONFIG_JOYSTICK_BUTTON_R1, 10); //swap
+    config_set_d(CONFIG_JOYSTICK_BUTTON_L2, -1); //no btn
+    config_set_d(CONFIG_JOYSTICK_BUTTON_R2, -1); //no btn
+    config_set_d(CONFIG_JOYSTICK_BUTTON_START, 7); //select is 6
+    config_set_d(CONFIG_JOYSTICK_DPAD_L, 18);
+    config_set_d(CONFIG_JOYSTICK_DPAD_R, 19);
+    config_set_d(CONFIG_JOYSTICK_DPAD_U, 16);
+    config_set_d(CONFIG_JOYSTICK_DPAD_D, 17);
+#endif
+
 }
 
 void config_save(void)

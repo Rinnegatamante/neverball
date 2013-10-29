@@ -26,7 +26,11 @@
 #ifdef __APPLE__
 #include <OpenGL/gl.h>
 #else
+#ifndef __MOBILE__
 #include <GL/gl.h>
+#else
+#include <GLES/gl.h>
+#endif
 #endif
 
 #ifdef _WIN32

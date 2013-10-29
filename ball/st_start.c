@@ -231,7 +231,11 @@ static int start_gui(void)
 
             gui_space(jd);
 
+#ifndef __MOBILE__
             gui_label(jd, _("Goal State in Completed Levels"), GUI_SML, 0, 0);
+#else
+            gui_label(jd, _("State in completed levels"), GUI_SML, 0, 0);
+#endif
 
             gui_filler(jd);
         }

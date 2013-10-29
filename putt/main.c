@@ -109,7 +109,7 @@ static int loop(void)
             c = e.key.keysym.sym;
 
 #ifdef __APPLE__
-            if (c == SDLK_q && e.key.keysym.mod & KMOD_META)
+            if (c == SDLK_q && e.key.keysym.mod & KMOD_GUI)
             {
                 d = 0;
                 break;
@@ -295,7 +295,18 @@ int main(int argc, char *argv[])
 
         if (config_get_d(CONFIG_JOYSTICK) && SDL_NumJoysticks() > 0)
         {
+#ifndef __MOBILE__
             joy = SDL_JoystickOpen(config_get_d(CONFIG_JOYSTICK_DEVICE));
+#else
+            int joystick_id = SDL_NumJoysticks()-1;
+            joy = SDL_JoystickOpen(joystick_id);
+            config_set_d(CONFIG_JOYSTICK_DEVICE, joystick_id);
+            if (joystick_id == 0) { //accelerometer
+                SDL_JoystickClose(joy);
+            } else { //gamepad
+                config_set_d(CONFIG_JOYSTICK_AXIS_X_INVERT, 1);
+            }
+#endif
             if (joy)
             {
                 SDL_JoystickEventState(SDL_ENABLE);
