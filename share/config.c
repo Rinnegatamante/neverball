@@ -424,6 +424,10 @@ void config_load(void)
     config_set_d(CONFIG_JOYSTICK_DPAD_D, 17);
 #endif
 
+#ifdef __PLAYBOOK__
+    config_set_d(CONFIG_BACKGROUND, 0); //FIXME: trying to squeeze some fps
+    config_set_d(CONFIG_VSYNC, 0); //FIXME: jerky on PlayBook
+#endif
 }
 
 void config_save(void)

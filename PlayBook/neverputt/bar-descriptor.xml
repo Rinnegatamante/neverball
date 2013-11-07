@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<qnx xmlns="http://www.qnx.com/schemas/application/1.0">
+
+<!-- BlackBerry Tablet OS application descriptor file.
+
+    Specifies parameters for identifying, installing, and launching native applications on BlackBerry Tablet OS.
+
+-->
+
+    <!-- A universally unique application identifier. Must be unique across all BlackBerry Tablet OS applications.
+         Using a reverse DNS-style name as the id is recommended. (Eg. com.example.ExampleApplication.) Required. -->
+    <id>com.drodin.neverputt</id>
+
+    <!-- The name that is displayed in the BlackBerry Tablet OS application installer. 
+         May have multiple values for each language. See samples or xsd schema file. Optional. -->
+    <name>Neverputt</name>
+    
+    <!-- A string value of the format <0-999>.<0-999>.<0-999> that represents application version which can be used to check for application upgrade. 
+         Values can also be 1-part or 2-part. It is not necessary to have a 3-part value.
+         An updated version of application must have a versionNumber value higher than the previous version. Required. -->
+    <versionNumber>1.6.0</versionNumber>
+
+    <!-- Fourth digit segment of the package version. First three segments are taken from the 
+         <versionNumber> element.  Must be an integer from 0 to 2^16-1 -->
+    <buildId>4</buildId>
+                 
+    <!-- A string value (such as "v1", "2.5", or "Alpha 1") that represents the version of the application, as it should be shown to users. Optional. -->
+    <!-- <versionLabel></versionLabel> -->
+
+    <!-- Description, displayed in the BlackBerry Tablet OS application installer.
+         May have multiple values for each language. See samples or xsd schema file. Optional. -->
+    <description>Neverputt</description>
+
+    <!-- Copyright information. Optional. -->
+    <!-- <copyright></copyright> -->
+
+    <!--  Name of author which is used for signing. Must match the developer name of your development certificate. -->
+    <author>drodin</author>
+    <authorId>gYAAgG1KCkMS4yrfT3u00hlkbxo</authorId>
+    
+    <!--  Unique author ID assigned by signing authority. Required if using debug tokens. -->
+    <!-- <authorId>ABC1234YjsnUk235h</authorId> -->
+   
+    <initialWindow>
+        <aspectRatio>landscape</aspectRatio>
+        <autoOrients>false</autoOrients>
+        <systemChrome>none</systemChrome>
+        <transparent>false</transparent>
+    </initialWindow>
+    
+    <!--  The category where the application appears. Either core.games or core.media. -->
+    <category>core.games</category>
+    <asset path="../../BlackBerry/neverputt/icon.png">icon.png</asset>
+    <asset path="../../BlackBerry/neverputt/data">data</asset>
+    <configuration id="com.qnx.qcc.configuration.exe.debug.1810978056" name="Device-Debug">
+       <platformArchitecture>armle-v7</platformArchitecture>
+       <asset path="Device-Debug/neverputt" entry="true" type="Qnx/Elf">neverputt</asset>
+       <asset path="${workspace_loc:/SDL2/Device-Debug/libSDL2.so}" type="Qnx/Elf">lib/libSDL2.so</asset>
+       <asset path="${workspace_loc:/SDL2_mixer/Device-Debug/libSDL2_mixer.so}" type="Qnx/Elf">lib/libSDL2_mixer.so</asset>
+       <asset path="${workspace_loc:/SDL2_ttf/Device-Debug/libSDL2_ttf.so}" type="Qnx/Elf">lib/libSDL2_ttf.so</asset>
+    </configuration>
+    <configuration id="com.qnx.qcc.configuration.exe.release.1912044575" name="Device-Release">
+       <platformArchitecture>armle-v7</platformArchitecture>
+       <asset path="Device-Release/neverputt" entry="true" type="Qnx/Elf">neverputt</asset>
+       <asset path="${workspace_loc:/SDL2/Device-Release/libSDL2.so}" type="Qnx/Elf">lib/libSDL2.so</asset>
+       <asset path="${workspace_loc:/SDL2_mixer/Device-Release/libSDL2_mixer.so}" type="Qnx/Elf">lib/libSDL2_mixer.so</asset>
+       <asset path="${workspace_loc:/SDL2_ttf/Device-Release/libSDL2_ttf.so}" type="Qnx/Elf">lib/libSDL2_ttf.so</asset>
+    </configuration>
+    <configuration id="com.qnx.qcc.configuration.exe.profile.1180737086" name="Simulator-Profile">
+       <platformArchitecture>x86</platformArchitecture>
+       <asset path="Simulator-Profile/neverputt" entry="true" type="Qnx/Elf">neverputt</asset>
+       <asset path="${workspace_loc:/SDL2/Simulator-Profile/libSDL2.so}" type="Qnx/Elf">lib/libSDL2.so</asset>
+       <asset path="${workspace_loc:/SDL2_mixer/Simulator-Profile/libSDL2_mixer.so}" type="Qnx/Elf">lib/libSDL2_mixer.so</asset>
+       <asset path="${workspace_loc:/SDL2_ttf/Simulator-Profile/libSDL2_ttf.so}" type="Qnx/Elf">lib/libSDL2_ttf.so</asset>
+    </configuration>
+    
+    <!--  The icon for the application, which should be 86x86. -->
+    <icon>
+        <image>icon.png</image>
+    </icon>
+    
+    <!--  The splash screen that will appear when your application is launching. Should be 1024x600. -->
+    <!-- <splashscreen></splashscreen> -->
+
+    <!-- Request permission to execute native code.  Required for native applications. -->
+    <action system="true">run_native</action>
+    
+    <!--  The permissions requested by your application. -->
+    <!--  <action>access_shared</action> -->
+    <!--  <action>record_audio</action> -->
+    <!--  <action>read_geolocation</action> -->
+    <!--  <action>use_camera</action> -->
+    <!--  <action>access_internet</action> -->
+    <!--  <action>play_audio</action> -->
+    <!--  <action>post_notification</action> -->
+    <!--  <action>set_audio_volume</action> -->
+    <!--  <action>read_device_identifying_information</action> -->
+
+    <!-- Ensure that shared libraries in the package are found at run-time. -->
+    <env var="LD_LIBRARY_PATH" value="app/native/lib"/>
+    
+</qnx>
