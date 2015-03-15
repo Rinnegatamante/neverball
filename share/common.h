@@ -26,7 +26,7 @@
 
 /* Random stuff. */
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__BLACKBERRY__)
 #define NULL_TERMINATED __attribute__ ((__sentinel__))
 #else
 #define NULL_TERMINATED

@@ -884,7 +884,7 @@ void game_set_x(float k)
 #ifdef __MOBILE__
     if (config_tst_d(CONFIG_JOYSTICK_DEVICE, 0)) {
         k = k*2 - 1;
-        (k > 1) ? 1 : ((k < -1) ? -1 : k);
+        k = (k > 1) ? 1 : ((k < -1) ? -1 : k);
     }
 #endif
     input_set_x(-ANGLE_BOUND * k);
@@ -897,7 +897,7 @@ void game_set_z(float k)
 #ifdef __MOBILE__
     if (config_tst_d(CONFIG_JOYSTICK_DEVICE, 0)) {
         k = k*2;
-        (k > 1) ? 1 : ((k < -1) ? -1 : k);
+        k = (k > 1) ? 1 : ((k < -1) ? -1 : k);
     }
 #endif
     input_set_z(+ANGLE_BOUND * k);

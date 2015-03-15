@@ -112,9 +112,11 @@ static int handle_key_dn(SDL_Event *e)
         if (config_cheat())
             toggle_lerp();
         break;
+#ifndef __MOBILE__
     case SDLK_RETURN:
         d = st_buttn(config_get_d(CONFIG_JOYSTICK_BUTTON_A), 1);
         break;
+#endif
     case KEY_EXIT:
         d = st_keybd(KEY_EXIT, 1);
         break;
@@ -142,9 +144,11 @@ static int handle_key_up(SDL_Event *e)
 
     switch (c)
     {
+#ifndef __MOBILE__
     case SDLK_RETURN:
         d = st_buttn(config_get_d(CONFIG_JOYSTICK_BUTTON_A), 0);
         break;
+#endif
     case KEY_EXIT:
         d = st_keybd(KEY_EXIT, 0);
         break;

@@ -134,9 +134,11 @@ static int loop(void)
             case KEY_WIREFRAME:
                 toggle_wire();
                 break;
+#ifndef __MOBILE__
             case SDLK_RETURN:
                 d = st_buttn(config_get_d(CONFIG_JOYSTICK_BUTTON_A), 1);
                 break;
+#endif
             case SDLK_ESCAPE:
                 if (video_get_grab())
                     d = st_buttn(config_get_d(CONFIG_JOYSTICK_BUTTON_START), 1);
@@ -164,9 +166,11 @@ static int loop(void)
 
             switch (c)
             {
+#ifndef __MOBILE__
             case SDLK_RETURN:
                 d = st_buttn(config_get_d(CONFIG_JOYSTICK_BUTTON_A), 0);
                 break;
+#endif
             case SDLK_ESCAPE:
                 if (video_get_grab())
                     d = st_buttn(config_get_d(CONFIG_JOYSTICK_BUTTON_START), 0);
