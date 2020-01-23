@@ -7,5 +7,14 @@
 /mapc
 /contrib/curve
 
-.version
-share/version.h
+/.version
+/share/version.h
+
+*.bak
+*.autosave.map
+
+/neverball.exe
+/neverputt.exe
+/mapc.exe
+/contrib/curve.exe
+/*.dll

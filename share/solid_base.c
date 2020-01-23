@@ -26,6 +26,7 @@
 enum
 {
     SOL_VERSION_1_5 = 6,
+    SOL_VERSION_1_6 = 7,
     SOL_VERSION_DEV
 };
 
@@ -67,12 +68,13 @@ static void sol_load_mtrl(fs_file fin, struct b_mtrl *mp)
 
     fs_read(mp->f, 1, PATHMAX, fin);
 
-    if (sol_version >= SOL_VERSION_DEV)
+    if (sol_version >= SOL_VERSION_1_6)
     {
-        if (mp->fl & M_SEMI_OPAQUE)
-            mp->semi_opaque = get_float(fin);
         if (mp->fl & M_ALPHA_TEST)
-            mp->alpha_test = get_float(fin);
+        {
+            mp->alpha_func = get_index(fin);
+            mp->alpha_ref  = get_float(fin);
+        }
     }
 
     /* Convert 1.5.4 material flags. */
@@ -144,7 +146,7 @@ static void sol_load_geom(fs_file fin, struct b_geom *gp, struct s_base *fp)
 {
     gp->mi = get_index(fin);
 
-    if (sol_version >= SOL_VERSION_DEV)
+    if (sol_version >= SOL_VERSION_1_6)
     {
         gp->oi = get_index(fin);
         gp->oj = get_index(fin);
@@ -231,7 +233,7 @@ static void sol_load_path(fs_file fin, struct b_path *pp)
     pp->tm = TIME_TO_MS(pp->t);
     pp->t  = MS_TO_TIME(pp->tm);
 
-    if (sol_version >= SOL_VERSION_DEV)
+    if (sol_version >= SOL_VERSION_1_6)
         pp->fl = get_index(fin);
 
     pp->e[0] = 1.0f;
@@ -247,7 +249,7 @@ static void sol_load_body(fs_file fin, struct b_body *bp)
 {
     bp->pi = get_index(fin);
 
-    if (sol_version >= SOL_VERSION_DEV)
+    if (sol_version >= SOL_VERSION_1_6)
     {
         bp->pj = get_index(fin);
 
@@ -347,7 +349,7 @@ static void sol_load_indx(fs_file fin, struct s_base *fp)
     fp->sc = get_index(fin);
     fp->tc = get_index(fin);
 
-    if (sol_version >= SOL_VERSION_DEV)
+    if (sol_version >= SOL_VERSION_1_6)
         fp->oc = get_index(fin);
 
     fp->gc = get_index(fin);
@@ -449,6 +451,17 @@ static int sol_load_file(fs_file fin, struct s_base *fp)
         fp->uv = (struct b_ball *) calloc(fp->uc, sizeof (*fp->uv));
     }
 
+    /* Add lit flag to old materials. */
+
+    if (sol_version <= SOL_VERSION_1_6)
+    {
+        for (i = 0; i < fp->mc; ++i)
+            fp->mv[i].fl |= M_LIT;
+
+        for (i = 0; i < fp->rc; ++i)
+          fp->mv[fp->rv[i].mi].fl &= ~M_LIT;
+    }
+
     return 1;
 }
 
@@ -485,7 +498,7 @@ int sol_load_base(struct s_base *fp, const char *filename)
 
     memset(fp, 0, sizeof (*fp));
 
-    if ((fin = fs_open(filename, "r")))
+    if ((fin = fs_open_read(filename)))
     {
         res = sol_load_file(fin, fp);
         fs_close(fin);
@@ -500,7 +513,7 @@ int sol_load_meta(struct s_base *fp, const char *filename)
 
     memset(fp, 0, sizeof (*fp));
 
-    if ((fin = fs_open(filename, "r")))
+    if ((fin = fs_open_read(filename)))
     {
         res = sol_load_head(fin, fp);
         fs_close(fin);
@@ -548,10 +561,11 @@ static void sol_stor_mtrl(fs_file fout, struct b_mtrl *mp)
 
     fs_write(mp->f, 1, PATHMAX, fout);
 
-    if (mp->fl & M_SEMI_OPAQUE)
-        put_float(fout, mp->semi_opaque);
     if (mp->fl & M_ALPHA_TEST)
-        put_float(fout, mp->alpha_test);
+    {
+        put_index(fout, mp->alpha_func);
+        put_float(fout, mp->alpha_ref);
+    }
 }
 
 static void sol_stor_vert(fs_file fout, struct b_vert *vp)
@@ -760,7 +774,7 @@ int sol_stor_base(struct s_base *fp, const char *filename)
 {
     fs_file fout;
 
-    if ((fout = fs_open(filename, "w")))
+    if ((fout = fs_open_write(filename)))
     {
         sol_stor_file(fout, fp);
         fs_close(fout);
@@ -783,5 +797,151 @@ const struct path mtrl_paths[2] = {
     { "textures/", "" },
     { "",          "" }
 };
+
+/*---------------------------------------------------------------------------*/
+
+/*
+ * This has to match up with mtrl_func_syms in mtrl.c.
+ */
+static const char mtrl_func_names[8][16] = {
+    "always",
+    "equal",
+    "gequal",
+    "greater",
+    "lequal",
+    "less",
+    "never",
+    "notequal"
+};
+
+static const struct
+{
+    char name[16];
+    int flag;
+} mtrl_flags[] = {
+    { "additive",    M_ADDITIVE },
+    { "clamp-s",     M_CLAMP_S },
+    { "clamp-t",     M_CLAMP_T },
+    { "decal",       M_DECAL },
+    { "environment", M_ENVIRONMENT },
+    { "reflective",  M_REFLECTIVE },
+    { "shadowed",    M_SHADOWED },
+    { "transparent", M_TRANSPARENT },
+    { "two-sided",   M_TWO_SIDED },
+    { "particle",    M_PARTICLE },
+    { "lit",         M_LIT },
+};
+
+int mtrl_read(struct b_mtrl *mp, const char *name)
+{
+    static char line[MAXSTR];
+    static char word[MAXSTR];
+
+    fs_file fp;
+    int i;
+
+    if (mp && name && *name)
+    {
+        SAFECPY(mp->f, name);
+
+        mp->a[0] = mp->a[1] = mp->a[2] = 0.2f;
+        mp->d[0] = mp->d[1] = mp->d[2] = 0.8f;
+        mp->s[0] = mp->s[1] = mp->s[2] = 0.0f;
+        mp->e[0] = mp->e[1] = mp->e[2] = 0.0f;
+        mp->a[3] = mp->d[3] = mp->s[3] = mp->e[3] = 1.0f;
+        mp->h[0] = 0.0f;
+        mp->fl   = 0;
+        mp->angle = 45.0f;
+
+        mp->alpha_func = 0;
+        mp->alpha_ref  = 0.0f;
+
+        fp = NULL;
+
+        for (i = 0; i < ARRAYSIZE(mtrl_paths); i++)
+        {
+            CONCAT_PATH(line, &mtrl_paths[i], name);
+
+            if ((fp = fs_open_read(line)))
+                break;
+        }
+
+        if (fp)
+        {
+            char str[16] = "";
+
+            while (fs_gets(line, sizeof (line), fp))
+            {
+                char *p = strip_newline(line);
+
+                if (sscanf(p, "diffuse %f %f %f %f",
+                           &mp->d[0], &mp->d[1],
+                           &mp->d[2], &mp->d[3]) == 4)
+                {
+                }
+                else if (sscanf(p, "ambient %f %f %f %f",
+                                &mp->a[0], &mp->a[1],
+                                &mp->a[2], &mp->a[3]) == 4)
+                {
+                }
+                else if (sscanf(p, "specular %f %f %f %f",
+                                &mp->s[0], &mp->s[1],
+                                &mp->s[2], &mp->s[3]) == 4)
+                {
+                }
+                else if (sscanf(p, "emissive %f %f %f %f",
+                                &mp->e[0], &mp->e[1],
+                                &mp->e[2], &mp->e[3]) == 4)
+                {
+                }
+                else if (sscanf(p, "shininess %f", &mp->h[0]) == 1)
+                {
+                }
+                else if (strncmp(p, "flags ", 6) == 0)
+                {
+                    int f = 0;
+                    int n;
+
+                    p += 6;
+
+                    while (sscanf(p, "%s%n", word, &n) > 0)
+                    {
+                        for (i = 0; i < ARRAYSIZE(mtrl_flags); i++)
+                            if (strcmp(word, mtrl_flags[i].name) == 0)
+                            {
+                                f |= mtrl_flags[i].flag;
+                                break;
+                            }
+
+                        p += n;
+                    }
+
+                    mp->fl = f;
+                }
+                else if (sscanf(p, "angle %f", &mp->angle) == 1)
+                {
+                }
+                else if (sscanf(p, "alpha-test %15s %f",
+                                str, &mp->alpha_ref) == 2)
+                {
+                    mp->fl |= M_ALPHA_TEST;
+
+                    for (i = 0; i < ARRAYSIZE(mtrl_func_names); i++)
+                        if (strcmp(str, mtrl_func_names[i]) == 0)
+                        {
+                            mp->alpha_func = i;
+                            break;
+                        }
+                }
+                else /* Unknown directive */;
+            }
+
+            fs_close(fp);
+            return 1;
+        }
+        else /* Unknown material */;
+    }
+    return 0;
+}
 
 /*---------------------------------------------------------------------------*/

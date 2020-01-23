@@ -28,12 +28,14 @@
 #include "state.h"
 #include "config.h"
 #include "video.h"
+#include "mtrl.h"
 #include "course.h"
 #include "hole.h"
 #include "game.h"
 #include "gui.h"
 #include "hmd.h"
 #include "fs.h"
+#include "joy.h"
 
 #include "st_conf.h"
 #include "st_all.h"
@@ -61,14 +63,12 @@ static void toggle_wire(void)
     {
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         glEnable(GL_TEXTURE_2D);
-        glEnable(GL_LIGHTING);
         wire = 0;
     }
     else
     {
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glDisable(GL_TEXTURE_2D);
-        glDisable(GL_LIGHTING);
         wire = 1;
     }
 #endif
@@ -82,6 +82,8 @@ static int loop(void)
     int d = 1;
     int c;
 
+    int ax, ay, dx, dy;
+
     while (d && SDL_PollEvent(&e))
     {
         if (e.type == SDL_QUIT)
@@ -90,10 +92,22 @@ static int loop(void)
         switch (e.type)
         {
         case SDL_MOUSEMOTION:
-            st_point(+e.motion.x,
-                     -e.motion.y + config_get_d(CONFIG_HEIGHT),
-                     +e.motion.xrel,
-                     -e.motion.yrel);
+            /* Convert to OpenGL coordinates. */
+
+            ax = +e.motion.x;
+            ay = -e.motion.y + video.window_h;
+            dx = +e.motion.xrel;
+            dy = -e.motion.yrel;
+
+            /* Convert to pixels. */
+
+            ax = ROUND(ax * video.device_scale);
+            ay = ROUND(ay * video.device_scale);
+            dx = ROUND(dx * video.device_scale);
+            dy = ROUND(dy * video.device_scale);
+
+            st_point(ax, ay, dx, dy);
+
             break;
 
         case SDL_MOUSEBUTTONDOWN:
@@ -136,6 +150,7 @@ static int loop(void)
                 break;
 #ifndef __MOBILE__
             case SDLK_RETURN:
+            case SDLK_KP_ENTER:
                 d = st_buttn(config_get_d(CONFIG_JOYSTICK_BUTTON_A), 1);
                 break;
 #endif
@@ -148,15 +163,15 @@ static int loop(void)
 
             default:
                 if (config_tst_d(CONFIG_KEY_FORWARD, c))
-                    st_stick(config_get_d(CONFIG_JOYSTICK_AXIS_Y), -1.0f);
+                    st_stick(config_get_d(CONFIG_JOYSTICK_AXIS_Y0), -1.0f);
                 else if (config_tst_d(CONFIG_KEY_BACKWARD, c))
-                    st_stick(config_get_d(CONFIG_JOYSTICK_AXIS_Y), +1.0f);
+                    st_stick(config_get_d(CONFIG_JOYSTICK_AXIS_Y0), +1.0f);
                 else if (config_tst_d(CONFIG_KEY_LEFT, c))
-                    st_stick(config_get_d(CONFIG_JOYSTICK_AXIS_X), -1.0f);
+                    st_stick(config_get_d(CONFIG_JOYSTICK_AXIS_X0), -1.0f);
                 else if (config_tst_d(CONFIG_KEY_RIGHT, c))
-                    st_stick(config_get_d(CONFIG_JOYSTICK_AXIS_X), +1.0f);
-
-                d = st_keybd(e.key.keysym.sym, 1);
+                    st_stick(config_get_d(CONFIG_JOYSTICK_AXIS_X0), +1.0f);
+                else
+                    d = st_keybd(e.key.keysym.sym, 1);
             }
             break;
 
@@ -168,6 +183,7 @@ static int loop(void)
             {
 #ifndef __MOBILE__
             case SDLK_RETURN:
+            case SDLK_KP_ENTER:
                 d = st_buttn(config_get_d(CONFIG_JOYSTICK_BUTTON_A), 0);
                 break;
 #endif
@@ -180,15 +196,15 @@ static int loop(void)
 
             default:
                 if (config_tst_d(CONFIG_KEY_FORWARD, c))
-                    st_stick(config_get_d(CONFIG_JOYSTICK_AXIS_Y), 0.0f);
+                    st_stick(config_get_d(CONFIG_JOYSTICK_AXIS_Y0), 0.0f);
                 else if (config_tst_d(CONFIG_KEY_BACKWARD, c))
-                    st_stick(config_get_d(CONFIG_JOYSTICK_AXIS_Y), 0.0f);
+                    st_stick(config_get_d(CONFIG_JOYSTICK_AXIS_Y0), 0.0f);
                 else if (config_tst_d(CONFIG_KEY_LEFT, c))
-                    st_stick(config_get_d(CONFIG_JOYSTICK_AXIS_X), 0.0f);
+                    st_stick(config_get_d(CONFIG_JOYSTICK_AXIS_X0), 0.0f);
                 else if (config_tst_d(CONFIG_KEY_RIGHT, c))
-                    st_stick(config_get_d(CONFIG_JOYSTICK_AXIS_X), 0.0f);
-
-                d = st_keybd(e.key.keysym.sym, 0);
+                    st_stick(config_get_d(CONFIG_JOYSTICK_AXIS_X0), 0.0f);
+                else
+                    d = st_keybd(e.key.keysym.sym, 0);
             }
             break;
 
@@ -208,15 +224,23 @@ static int loop(void)
             break;
 
         case SDL_JOYAXISMOTION:
-            st_stick(e.jaxis.axis, JOY_VALUE(e.jaxis.value));
+            joy_axis(e.jaxis.which, e.jaxis.axis, JOY_VALUE(e.jaxis.value));
             break;
 
         case SDL_JOYBUTTONDOWN:
-            d = st_buttn(e.jbutton.button, 1);
+            d = joy_button(e.jbutton.which, e.jbutton.button, 1);
             break;
 
         case SDL_JOYBUTTONUP:
-            d = st_buttn(e.jbutton.button, 0);
+            d = joy_button(e.jbutton.which, e.jbutton.button, 0);
+            break;
+
+        case SDL_JOYDEVICEADDED:
+            joy_add(e.jdevice.which);
+            break;
+
+        case SDL_JOYDEVICEREMOVED:
+            joy_remove(e.jdevice.which);
             break;
         }
     }
@@ -268,55 +292,36 @@ static void opt_parse(int argc, char **argv)
 int main(int argc, char *argv[])
 {
     int camera = 0;
-    SDL_Joystick *joy = NULL;
 
-    if (!fs_init(argv[0]))
+    if (!fs_init(argc > 0 ? argv[0] : NULL))
     {
-        fprintf(stderr, "Failure to initialize virtual file system: %s\n",
+        fprintf(stderr, "Failure to initialize virtual file system (%s)\n",
                 fs_error());
         return 1;
     }
 
     srand((int) time(NULL));
 
-    lang_init("neverball");
-
     opt_parse(argc, argv);
 
     config_paths(opt_data);
+    log_init("Neverputt", "neverputt.log");
     fs_mkdir("Screenshots");
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK) == 0)
     {
+        joy_init();
+
         config_init();
         config_load();
+
+        /* Initialize localization. */
+
+        lang_init();
 
         /* Cache Neverball's camera setting. */
 
         camera = config_get_d(CONFIG_CAMERA);
-
-        /* Initialize the joystick. */
-
-        if (config_get_d(CONFIG_JOYSTICK) && SDL_NumJoysticks() > 0)
-        {
-#ifndef __MOBILE__
-            joy = SDL_JoystickOpen(config_get_d(CONFIG_JOYSTICK_DEVICE));
-#else
-            int joystick_id = SDL_NumJoysticks()-1;
-            joy = SDL_JoystickOpen(joystick_id);
-            config_set_d(CONFIG_JOYSTICK_DEVICE, joystick_id);
-            if (joystick_id == 0) { //accelerometer
-                SDL_JoystickClose(joy);
-            } else { //gamepad
-                config_set_d(CONFIG_JOYSTICK_AXIS_X_INVERT, 1);
-            }
-#endif
-            if (joy)
-            {
-                SDL_JoystickEventState(SDL_ENABLE);
-                set_joystick(joy);
-            }
-        }
 
         /* Initialize the audio. */
 
@@ -327,6 +332,10 @@ int main(int argc, char *argv[])
         if (video_init())
         {
             int t1, t0 = SDL_GetTicks();
+
+            /* Material system. */
+
+            mtrl_init();
 
             /* Run the main game loop. */
 
@@ -369,6 +378,8 @@ int main(int argc, char *argv[])
                     if (config_get_d(CONFIG_NICE))
                         SDL_Delay(1);
                 }
+
+            mtrl_quit();
         }
 
         /* Restore Neverball's camera setting. */
@@ -376,9 +387,11 @@ int main(int argc, char *argv[])
         config_set_d(CONFIG_CAMERA, camera);
         config_save();
 
+        joy_quit();
+
         SDL_Quit();
     }
-    else fprintf(stderr, "%s: %s\n", argv[0], SDL_GetError());
+    else log_printf("Failure to initialize SDL (%s)\n", SDL_GetError());
 
     return 0;
 }

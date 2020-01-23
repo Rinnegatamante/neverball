@@ -67,10 +67,10 @@ static ov_callbacks callbacks = {
 /*---------------------------------------------------------------------------*/
 
 #define MIX(d, s) {                           \
-        int n = (int) (d) + (int) (s);        \
-        if      (n >  32767) (d) =  32767;    \
-        else if (n < -32768) (d) = -32768;    \
-        else                 (d) = (short) n; \
+        int T = (int) (d) + (int) (s);        \
+        if      (T >  32767) (d) =  32767;    \
+        else if (T < -32768) (d) = -32768;    \
+        else                 (d) = (short) T; \
     }
 
 static int voice_step(struct voice *V, float volume, Uint8 *stream, int length)
@@ -115,8 +115,8 @@ static int voice_step(struct voice *V, float volume, Uint8 *stream, int length)
 
                     V->amp += V->damp;
 
-                    if (V->amp < 0.0) V->amp = 0.0;
-                    if (V->amp > 1.0) V->amp = 1.0;
+                    if (V->amp < 0.0f) V->amp = 0.0;
+                    if (V->amp > 1.0f) V->amp = 1.0;
                 }
 
             /* Mix stereo audio. */
@@ -132,8 +132,8 @@ static int voice_step(struct voice *V, float volume, Uint8 *stream, int length)
 
                     V->amp += V->damp;
 
-                    if (V->amp < 0.0) V->amp = 0.0;
-                    if (V->amp > 1.0) V->amp = 1.0;
+                    if (V->amp < 0.0f) V->amp = 0.0;
+                    if (V->amp > 1.0f) V->amp = 1.0;
                 }
 
             r -= n;
@@ -168,7 +168,7 @@ static struct voice *voice_init(const char *filename, float a)
 
         /* Attempt to open the named Ogg stream. */
 
-        if ((fp = fs_open(filename, "r")))
+        if ((fp = fs_open_read(filename)))
         {
             if (ov_open_callbacks(fp, &V->vf, NULL, 0, callbacks) == 0)
             {
@@ -182,8 +182,8 @@ static struct voice *voice_init(const char *filename, float a)
                 V->play = 1;
                 V->loop = 0;
 
-                if (V->amp > 1.0) V->amp = 1.0;
-                if (V->amp < 0.0) V->amp = 0.0;
+                if (V->amp > 1.0f) V->amp = 1.0;
+                if (V->amp < 0.0f) V->amp = 0.0;
 
                 /* The file will be closed when the Ogg is cleared. */
             }
@@ -282,7 +282,7 @@ void audio_init(void)
             audio_state = 1;
             SDL_PauseAudio(0);
         }
-        else fprintf(stderr, "%s\n", SDL_GetError());
+        else log_printf("Failure to open audio device (%s)\n", SDL_GetError());
     }
 
     /* Set the initial volumes. */
@@ -321,8 +321,8 @@ void audio_play(const char *filename, float a)
 
                     V->amp = a;
 
-                    if (V->amp > 1.0) V->amp = 1.0;
-                    if (V->amp < 0.0) V->amp = 0.0;
+                    if (V->amp > 1.0f) V->amp = 1.0;
+                    if (V->amp < 0.0f) V->amp = 0.0;
 
                     SDL_UnlockAudio();
                     return;

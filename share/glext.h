@@ -23,6 +23,12 @@
 #include <windows.h>
 #endif
 
+#if ENABLE_OPENGLES
+
+#include <GLES/gl.h>
+
+#else  /* ENABLE_OPENGLES */
+
 #ifdef __APPLE__
 #include <OpenGL/gl.h>
 #else
@@ -36,6 +42,8 @@
 #ifdef _WIN32
 #include <GL/glext.h>
 #endif
+
+#endif  /* ENABLE_OPENGLES */
 
 /* Windows calling convention cruft. */
 
@@ -82,6 +90,12 @@
 #endif
 #ifndef GL_COORD_REPLACE
 #define GL_COORD_REPLACE              0x8862
+#endif
+#ifndef GL_POINT_SIZE_MIN
+#define GL_POINT_SIZE_MIN             0x8126
+#endif
+#ifndef GL_POINT_SIZE_MAX
+#define GL_POINT_SIZE_MAX             0x8127
 #endif
 #ifndef GL_POINT_DISTANCE_ATTENUATION
 #define GL_POINT_DISTANCE_ATTENUATION 0x8129
@@ -153,11 +167,7 @@ int glext_init(void);
 /* of the extensions we use. Otherwise, GetProc them regardless of whether   */
 /* they need it or not.                                                      */
 
-#if defined(GL_VERSION_ES_CM_1_0) || \
-    defined(GL_VERSION_ES_CM_1_1) || \
-    defined(GL_OES_VERSION_1_0)
-
-#define ENABLE_OPENGLES 1
+#if ENABLE_OPENGLES
 
 #define glClientActiveTexture_ glClientActiveTexture
 #define glActiveTexture_       glActiveTexture
@@ -168,6 +178,7 @@ int glext_init(void);
 #define glDeleteBuffers_       glDeleteBuffers
 #define glIsBuffer_            glIsBuffer
 #define glPointParameterfv_    glPointParameterfv
+#define glPointParameterf_     glPointParameterf
 
 #define glOrtho_               glOrthof
 
@@ -207,8 +218,10 @@ extern PFNGLISBUFFER_PROC      glIsBuffer_;
 /* ARB_point_parameters                                                      */
 
 typedef void (APIENTRYP PFNGLPOINTPARAMETERFV_PROC)(GLenum, const GLfloat *);
+typedef void (APIENTRYP PFNGLPOINTPARAMETERF_PROC) (GLenum, const GLfloat);
 
 extern PFNGLPOINTPARAMETERFV_PROC glPointParameterfv_;
+extern PFNGLPOINTPARAMETERF_PROC  glPointParameterf_;
 
 /*---------------------------------------------------------------------------*/
 /* OpenGL Shading Language                                                   */
@@ -289,11 +302,9 @@ struct gl_info
     GLint max_texture_units;
     GLint max_texture_size;
 
-    unsigned int multitexture:1;
-    unsigned int vertex_buffer_object:1;
-    unsigned int point_parameters:1;
-    unsigned int shader_objects:1;
-    unsigned int framebuffer_object:1;
+    unsigned int texture_filter_anisotropic : 1;
+    unsigned int shader_objects             : 1;
+    unsigned int framebuffer_object         : 1;
 };
 
 extern struct gl_info gli;

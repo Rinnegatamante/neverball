@@ -19,6 +19,7 @@ extern "C"
     #include "hmd_common.h"
     #include "config.h"
     #include "glext.h"
+    #include "video.h"
 }
 
 /*---------------------------------------------------------------------------*/
@@ -26,9 +27,9 @@ extern "C"
 static OVR::Ptr<OVR::DeviceManager> pManager;
 static OVR::Ptr<OVR::HMDDevice>     pHMD;
 static OVR::Ptr<OVR::SensorDevice>  pSensor;
+static OVR::SensorFusion           *pFusion;
 
-static OVR::HMDInfo      Info;
-static OVR::SensorFusion Fusion;
+static OVR::HMDInfo Info;
 
 static OVR::Util::Render::StereoConfig    Stereo;
 static OVR::Util::Render::StereoEyeParams Params;
@@ -63,17 +64,17 @@ static void hmd_matrix(OVR::Matrix4f& M)
 
 extern "C" int hmd_stat()
 {
-    return config_get_d(CONFIG_HMD);
+    return (config_get_d(CONFIG_HMD) && hmd_common_stat());
 }
 
 extern "C" void hmd_init()
 {
-    // Set default HMD info for a 7" OVR DK1 in case OVR fails for any reason.
+    /* Set default HMD info for a 7" OVR DK1 in case OVR fails. */
 
     Info.DesktopX               = 0;
     Info.DesktopY               = 0;
-    Info.HResolution            = config_get_d(CONFIG_WIDTH);
-    Info.VResolution            = config_get_d(CONFIG_HEIGHT);
+    Info.HResolution            = video.device_w;
+    Info.VResolution            = video.device_h;
 
     Info.HScreenSize            =  0.14976f;
     Info.VScreenSize            =  0.09350f;
@@ -85,13 +86,14 @@ extern "C" void hmd_init()
     Info.DistortionK[0]         =  1.00f;
     Info.DistortionK[1]         =  0.22f;
     Info.DistortionK[2]         =  0.24f;
+    Info.DistortionK[3]         =  0.00f;
 
     Info.ChromaAbCorrection[0]  =  0.996f;
     Info.ChromaAbCorrection[1]  = -0.004f;
     Info.ChromaAbCorrection[2]  =  1.014f;
     Info.ChromaAbCorrection[3]  =  0.000f;
 
-    // Initialize OVR, the device, the sensor, and the sensor fusion.
+    /* Initialize OVR, the device, the sensor, and the sensor fusion. */
 
     OVR::System::Init(OVR::Log::ConfigureDefaultLog(OVR::LogMask_All));
 
@@ -103,7 +105,8 @@ extern "C" void hmd_init()
             {
                 if ((pSensor = *pHMD->GetSensor()))
                 {
-                    Fusion.AttachToSensor(pSensor);
+                    pFusion = new OVR::SensorFusion();
+                    pFusion->AttachToSensor(pSensor);
 
                     pHMD->GetDeviceInfo(&Info);
                 }
@@ -111,7 +114,7 @@ extern "C" void hmd_init()
         }
     }
 
-    // Set up the stereo config using the HMD info.
+    /* Set up the stereo config using the HMD info. */
 
     using namespace OVR::Util::Render;
 
@@ -127,6 +130,8 @@ extern "C" void hmd_init()
 extern "C" void hmd_free()
 {
     hmd_common_free();
+
+    delete pFusion;
 
     pSensor  = 0;
     pHMD     = 0;
@@ -176,7 +181,7 @@ extern "C" void hmd_persp(float n, float f)
         OVR::Vector3f v;
         float         a;
 
-        Fusion.GetOrientation().GetAxisAngle(&v, &a);
+        pFusion->GetOrientation().GetAxisAngle(&v, &a);
         glTranslatef(0.0f, -0.1f, 0.f);
         glRotatef(OVR::RadToDegree(-a), v.x, v.y, v.z);
         glTranslatef(0.0f, +0.1f, 0.f);
@@ -187,8 +192,11 @@ extern "C" void hmd_ortho()
 {
     hmd_persp(0.5f, 2.0f);
 
-    glScalef    ( 1.25f / Info.VResolution,  1.25f / Info.VResolution,  1.0f);
-    glTranslatef(-0.50f * Info.HResolution, -0.50f * Info.VResolution, -1.0f);
+    int w = video.device_w;
+    int h = video.device_h;
+
+    glScalef    ( 1.25f / h,  1.25f / h,  1.0f);
+    glTranslatef(-0.50f * w, -0.50f * h, -1.0f);
 }
 
 /*---------------------------------------------------------------------------*/

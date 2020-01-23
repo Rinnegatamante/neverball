@@ -11,8 +11,8 @@
 
 struct demo
 {
+    char   path[MAXSTR];                /* Demo path                         */
     char   name[PATHMAX];               /* Demo basename                     */
-    char   filename[MAXSTR];            /* Demo path                         */
 
     char   player[MAXSTR];
     time_t date;
@@ -35,8 +35,8 @@ struct demo
 
 /*---------------------------------------------------------------------------*/
 
-struct demo *demo_load(const char *);
-void         demo_free(struct demo *);
+int  demo_load(struct demo *, const char *);
+void demo_free(struct demo *);
 
 int demo_exists(const char *);
 
@@ -65,7 +65,7 @@ float demo_replay_blend(void);
 
 const char *curr_demo(void);
 
-void demo_speed_set(int);
+void demo_replay_speed(int);
 
 /*---------------------------------------------------------------------------*/
 

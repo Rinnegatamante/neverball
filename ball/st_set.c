@@ -87,15 +87,18 @@ static int set_action(int tok, int val)
 static void gui_set(int id, int i)
 {
     if (set_exists(i))
-        gui_state(id, set_name(i), GUI_SML, SET_SELECT, i);
+        if (i % SET_STEP == 0)
+            gui_start(id, set_name(i), GUI_SML, SET_SELECT, i);
+        else
+            gui_state(id, set_name(i), GUI_SML, SET_SELECT, i);
     else
         gui_label(id, "", GUI_SML, 0, 0);
 }
 
 static int set_gui(void)
 {
-    int w = config_get_d(CONFIG_WIDTH);
-    int h = config_get_d(CONFIG_HEIGHT);
+    int w = video.device_w;
+    int h = video.device_h;
 
     int id, jd, kd;
 

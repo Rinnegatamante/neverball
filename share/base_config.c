@@ -19,6 +19,7 @@
 
 #include "base_config.h"
 #include "common.h"
+#include "log.h"
 #include "fs.h"
 
 #ifdef _WIN32
@@ -54,7 +55,17 @@ static const char *pick_home_path(void)
     static char path[MAX_PATH];
 
     if (SHGetFolderPath(NULL, CSIDL_PERSONAL, NULL, 0, path) == S_OK)
+    {
+        static char gamepath[MAX_PATH];
+
+        SAFECPY(gamepath, path);
+        SAFECAT(gamepath, "\\My Games");
+
+        if (dir_exists(gamepath) || dir_make(gamepath) == 0)
+            return gamepath;
+
         return path;
+    }
     else
         return fs_base_dir();
 #else
@@ -91,8 +102,24 @@ void config_paths(const char *arg_data_path)
 
     if (!fs_set_write_dir(user))
     {
-        if (fs_set_write_dir(home) && fs_mkdir(CONFIG_USER))
-            fs_set_write_dir(user);
+        int success = 0;
+
+        log_printf("Failure to establish write directory. First run?\n");
+
+        if (fs_set_write_dir(home))
+            if (fs_mkdir(CONFIG_USER))
+                if (fs_set_write_dir(user))
+                    success = 1;
+
+        if (success)
+        {
+            log_printf("Write directory established at %s\n", user);
+        }
+        else
+        {
+            log_printf("Write directory not established at %s\n", user);
+            fs_set_write_dir(NULL);
+        }
     }
 
     fs_add_path_with_archives(user);

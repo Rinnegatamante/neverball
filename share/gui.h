@@ -16,11 +16,11 @@
 #define GUI_H
 
 #include "glext.h"
-#include "lang.h"
+#include "video.h"
 
 /*---------------------------------------------------------------------------*/
 
-#define GUI_FACE N_("ttf/DejaVuSans-Bold.ttf")
+#define GUI_FACE "ttf/DejaVuSans-Bold.ttf"
 
 #define GUI_SML  0
 #define GUI_MED  1
@@ -72,6 +72,7 @@ void gui_free(void);
 
 void gui_set_label(int, const char *);
 void gui_set_image(int, const char *);
+void gui_set_font(int, const char *);
 void gui_set_multi(int, const char *);
 void gui_set_count(int, int);
 void gui_set_clock(int, int);
@@ -121,6 +122,40 @@ int  gui_active(void);
 int  gui_token(int);
 int  gui_value(int);
 void gui_toggle(int);
+
+/*---------------------------------------------------------------------------*/
+
+/*
+ * Reserved GUI tokens. (Mostly Neverball specific.)
+ */
+
+enum
+{
+    GUI_NONE = 0,
+
+    GUI_BACK,
+    GUI_PREV,
+    GUI_NEXT,
+    GUI_BS,
+    GUI_CL,
+    GUI_CHAR,
+    GUI_NAME,
+    GUI_SCORE,
+
+    GUI_LAST
+};
+
+int gui_navig(int id, int total, int first, int step);
+int gui_maybe(int, const char *, int, int, int);
+
+/*---------------------------------------------------------------------------*/
+
+struct size
+{
+    int w, h;
+};
+
+struct size gui_measure(const char *text, int size);
 
 /*---------------------------------------------------------------------------*/
 

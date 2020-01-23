@@ -16,6 +16,7 @@
 #include "audio.h"
 #include "config.h"
 #include "demo.h"
+#include "video.h"
 
 #include "game_common.h"
 #include "game_server.h"
@@ -130,8 +131,8 @@ static int page_rules(int id)
         "unlock the goal and finish\\"
         "the level.\\");
 
-    int w = config_get_d(CONFIG_WIDTH);
-    int h = config_get_d(CONFIG_HEIGHT);
+    int w = video.device_w;
+    int h = video.device_h;
 
     int jd, kd, ld;
 
@@ -198,6 +199,7 @@ static int page_controls(int id)
     const char *s_camera1 = _("Chase Camera");
     const char *s_camera2 = _("Lazy Camera");
     const char *s_camera3 = _("Manual Camera");
+    const char *s_restart = _("Restart Level");
     const char *s_shot    = _("Screenshot");
 
     /*
@@ -209,6 +211,7 @@ static int page_controls(int id)
     const SDL_Keycode k_cam1 = config_get_d(CONFIG_KEY_CAMERA_1);
     const SDL_Keycode k_cam2 = config_get_d(CONFIG_KEY_CAMERA_2);
     const SDL_Keycode k_cam3 = config_get_d(CONFIG_KEY_CAMERA_3);
+    const SDL_Keycode k_restart = config_get_d(CONFIG_KEY_RESTART);
     const SDL_Keycode k_shot = KEY_SCREENSHOT;
 
     int jd, kd;
@@ -254,6 +257,11 @@ static int page_controls(int id)
         {
             gui_label(kd, s_camera3, GUI_SML, gui_wht, gui_wht);
             gui_label(kd, SDL_GetKeyName(k_cam3), GUI_SML, gui_yel, gui_yel);
+        }
+        if ((kd = gui_harray(jd)))
+        {
+            gui_label(kd, s_restart, GUI_SML, gui_wht, gui_wht);
+            gui_label(kd, SDL_GetKeyName(k_restart), GUI_SML, gui_yel, gui_yel);
         }
         if ((kd = gui_harray(jd)))
         {
@@ -347,8 +355,8 @@ static int page_tricks(int id)
         "degrees for best results.\\");
 #endif
 
-    int w = config_get_d(CONFIG_WIDTH);
-    int h = config_get_d(CONFIG_HEIGHT);
+    int w = video.device_w;
+    int h = video.device_h;
 
     int jd, kd, ld;
 

@@ -16,9 +16,19 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h> /* offsetof */
 #include <string.h>
 #include <math.h>
 #include <sys/time.h>
+#include <assert.h>
+
+#if ENABLE_RADIANT_CONSOLE
+/*
+ * Mapc is not an SDL app, we just want the SDL_net symbols.
+ */
+#define WITHOUT_SDL 1
+#include <SDL_net.h>
+#endif
 
 #include "solid_base.h"
 
@@ -46,10 +56,163 @@
 static const char *input_file;
 static int         debug_output = 0;
 static int           csv_output = 0;
-static int         verbose;
 
-struct timeval t0;
-struct timeval t1;
+/*---------------------------------------------------------------------------*/
+
+#if ENABLE_RADIANT_CONSOLE
+
+/*
+ * Message levels from radiant/console.h
+ */
+#define BCAST_STD 1
+#define BCAST_WRN 2
+#define BCAST_ERR 3
+
+#define MAX_BCAST_MSG 512
+
+static TCPsocket     bcast_socket;
+static unsigned char bcast_msg[MAX_BCAST_MSG];
+static size_t        bcast_msg_len;
+
+static void bcast_quit(void);
+
+static int bcast_error(void)
+{
+    fprintf(stderr, "%s\n", SDLNet_GetError());
+    bcast_quit();
+    return 0;
+}
+
+static void bcast_write_len(size_t len)
+{
+    unsigned char *p = &bcast_msg[bcast_msg_len];
+
+    if (bcast_msg_len + 4u < sizeof (bcast_msg))
+    {
+        p[0] =  len        & 0xff;
+        p[1] = (len >> 8)  & 0xff;
+        p[2] = (len >> 16) & 0xff;
+        p[3] = (len >> 24) & 0xff;
+
+        bcast_msg_len += 4u;
+    }
+}
+
+static void bcast_write_str(const char *str)
+{
+    if (str && *str)
+    {
+        unsigned char *p = &bcast_msg[bcast_msg_len];
+        size_t         n = MIN(strlen(str), (sizeof (bcast_msg) -
+                                             bcast_msg_len - 1));
+
+        memcpy(p, str, n);
+        p[n] = 0;
+
+        bcast_msg_len += n + 1;
+    }
+}
+
+static void bcast_send_str(const char *str)
+{
+    size_t len;
+
+    /* Reserve 4 bytes. */
+
+    bcast_msg_len = 4;
+
+    /* Write the string. */
+
+    bcast_write_str(str);
+
+    /* Write its length in the reserved 4 bytes. */
+
+    len = bcast_msg_len;
+    bcast_msg_len = 0;
+    bcast_write_len(len - 4);
+    bcast_msg_len = len;
+
+    /* Send data. */
+
+    if (bcast_socket &&
+        SDLNet_TCP_Send(bcast_socket,
+                        bcast_msg,
+                        bcast_msg_len) < bcast_msg_len)
+        bcast_error();
+}
+
+static void bcast_send_msg(int lvl, const char *str)
+{
+    char buf[512];
+    int maxstr;
+
+    assert(lvl > 0 && lvl < 10);
+
+    /*
+     * These are not real time. Radiant will buffer them and randomly
+     * flush the buffer whenever it feels like (usually upon
+     * disconnection). It also stops processing after a level 3
+     * message.
+     */
+
+    maxstr = sizeof (buf) - sizeof ("<message level=\"1\"></message>");
+    sprintf(buf, "<message level=\"%1d\">%.*s</message>", lvl, maxstr, str);
+    bcast_send_str(buf);
+}
+
+static int bcast_init(void)
+{
+    IPaddress addr;
+
+    if (SDLNet_Init() == -1)
+        return bcast_error();
+    if (SDLNet_ResolveHost(&addr, "127.0.0.1", 39000) == -1)
+        return bcast_error();
+    if (!(bcast_socket = SDLNet_TCP_Open(&addr)))
+        return bcast_error();
+
+    bcast_send_str("<?xml version=\"1.0\"?>"
+                   "<q3map_feedback version=\"1\">");
+    return 1;
+}
+
+static void bcast_quit(void)
+{
+    SDLNet_TCP_Close(bcast_socket);
+    bcast_socket = NULL;
+    SDLNet_Quit();
+}
+
+#define MESSAGE(str) do {                       \
+        bcast_send_msg(BCAST_STD, (str));       \
+        fprintf(stdout, "%s", str);             \
+    } while (0)
+
+#define WARNING(str) do {                       \
+        bcast_send_msg(BCAST_WRN, (str));       \
+        fprintf(stderr, "%s", str);             \
+    } while (0)
+
+#define ERROR(str) do {                         \
+        bcast_send_msg(BCAST_ERR, (str));       \
+        fprintf(stderr, "%s", str);             \
+    } while (0)
+
+#else /* ENABLE_RADIANT_CONSOLE */
+
+#define MESSAGE(str) do {                       \
+        fprintf(stdout, "%s", str);             \
+    } while (0)
+
+#define WARNING(str) do {                       \
+        fprintf(stderr, "%s", str);             \
+    } while (0)
+
+#define ERROR(str) do {                         \
+        fprintf(stderr, "%s", str);             \
+    } while (0)
+
+#endif /* ENABLE_RADIANT_CONSOLE */
 
 /*---------------------------------------------------------------------------*/
 
@@ -60,7 +223,7 @@ struct timeval t1;
 #define MAXE    131072
 #define MAXS    65536
 #define MAXT    131072
-#define MAXO    131072
+#define MAXO    262144
 #define MAXG    65536
 #define MAXL    4096
 #define MAXN    2048
@@ -79,7 +242,9 @@ struct timeval t1;
 
 static int overflow(const char *s)
 {
-    printf("%s overflow\n", s);
+    char buf[64];
+    sprintf(buf, "%s overflow\n", s);
+    ERROR(buf);
     exit(1);
     return 0;
 }
@@ -448,32 +613,12 @@ static void size_image(const char *name, int *w, int *h)
 
 /* Read the given material file, adding a new material to the solid.  */
 
-static const struct
-{
-    char name[16];
-    int flag;
-} mtrl_flags[] = {
-    { "additive",    M_ADDITIVE },
-    { "clamp-s",     M_CLAMP_S },
-    { "clamp-t",     M_CLAMP_T },
-    { "decal",       M_DECAL },
-    { "environment", M_ENVIRONMENT },
-    { "reflective",  M_REFLECTIVE },
-    { "shadowed",    M_SHADOWED },
-    { "transparent", M_TRANSPARENT },
-    { "two-sided",   M_TWO_SIDED },
-    { "semi-opaque", M_SEMI_OPAQUE | M_TRANSPARENT },
-    { "alpha-test",  M_ALPHA_TEST },
-};
-
 static int read_mtrl(struct s_base *fp, const char *name)
 {
-    static char line[MAXSTR];
-    static char word[MAXSTR];
+    static char buf [MAXSTR];
 
     struct b_mtrl *mp;
-    fs_file fin;
-    int mi, i;
+    int mi;
 
     for (mi = 0; mi < fp->mc; mi++)
         if (strncmp(name, fp->mv[mi].f, MAXSTR) == 0)
@@ -481,94 +626,14 @@ static int read_mtrl(struct s_base *fp, const char *name)
 
     mp = fp->mv + incm(fp);
 
-    strncpy(mp->f, name, PATHMAX - 1);
-
-    mp->a[0] = mp->a[1] = mp->a[2] = 0.2f;
-    mp->d[0] = mp->d[1] = mp->d[2] = 0.8f;
-    mp->s[0] = mp->s[1] = mp->s[2] = 0.0f;
-    mp->e[0] = mp->e[1] = mp->e[2] = 0.0f;
-    mp->a[3] = mp->d[3] = mp->s[3] = mp->e[3] = 1.0f;
-    mp->h[0] = 0.0f;
-    mp->fl   = 0;
-    mp->angle = 45.0f;
-
-    fin = NULL;
-
-    for (i = 0; i < ARRAYSIZE(mtrl_paths); i++)
+    if (!mtrl_read(mp, name))
     {
-        CONCAT_PATH(line, &mtrl_paths[i], name);
-
-        if ((fin = fs_open(line, "r")))
-            break;
+        SAFECPY(buf, input_file);
+        SAFECAT(buf, ": unknown material \"");
+        SAFECAT(buf, name);
+        SAFECAT(buf, "\"\n");
+        WARNING(buf);
     }
-
-    if (fin)
-    {
-        while (fs_gets(line, sizeof (line), fin))
-        {
-            char *p = strip_newline(line);
-
-            if (sscanf(p, "diffuse %f %f %f %f",
-                       &mp->d[0], &mp->d[1],
-                       &mp->d[2], &mp->d[3]) == 4)
-            {
-            }
-            else if (sscanf(p, "ambient %f %f %f %f",
-                            &mp->a[0], &mp->a[1],
-                            &mp->a[2], &mp->a[3]) == 4)
-            {
-            }
-            else if (sscanf(p, "specular %f %f %f %f",
-                            &mp->s[0], &mp->s[1],
-                            &mp->s[2], &mp->s[3]) == 4)
-            {
-            }
-            else if (sscanf(p, "emissive %f %f %f %f",
-                            &mp->e[0], &mp->e[1],
-                            &mp->e[2], &mp->e[3]) == 4)
-            {
-            }
-            else if (sscanf(p, "shininess %f", &mp->h[0]) == 1)
-            {
-            }
-            else if (strncmp(p, "flags ", 6) == 0)
-            {
-                int f = 0;
-                int n;
-
-                p += 6;
-
-                while (sscanf(p, "%s%n", word, &n) > 0)
-                {
-                    for (i = 0; i < ARRAYSIZE(mtrl_flags); i++)
-                        if (strcmp(word, mtrl_flags[i].name) == 0)
-                        {
-                            f |= mtrl_flags[i].flag;
-                            break;
-                        }
-
-                    p += n;
-                }
-
-                mp->fl = f;
-            }
-            else if (sscanf(p, "angle %f", &mp->angle) == 1)
-            {
-            }
-            else if (sscanf(p, "semi-opaque %f", &mp->semi_opaque) == 1)
-            {
-            }
-            else if (sscanf(p, "alpha-test %f", &mp->alpha_test) == 1)
-            {
-            }
-            else if (verbose)
-                fprintf(stderr, "%s: unknown directive \"%s\"\n", name, p);
-        }
-
-        fs_close(fin);
-    }
-    else if (verbose)
-        fprintf(stderr, "%s: unknown material \"%s\"\n", input_file, name);
 
     return mi;
 }
@@ -685,7 +750,7 @@ static void read_f(struct s_base *fp, const char *line,
                    int v0, int t0, int s0, int mi)
 {
     struct b_geom *gp = fp->gv + incg(fp);
-    
+
     struct b_offs *op = fp->ov + (gp->oi = inco(fp));
     struct b_offs *oq = fp->ov + (gp->oj = inco(fp));
     struct b_offs *or = fp->ov + (gp->ok = inco(fp));
@@ -721,7 +786,7 @@ static void read_obj(struct s_base *fp, const char *name, int mi)
     int t0 = fp->tc;
     int s0 = fp->sc;
 
-    if ((fin = fs_open(name, "r")))
+    if ((fin = fs_open_read(name)))
     {
         while (fs_gets(line, MAXSTR, fin))
         {
@@ -1202,9 +1267,6 @@ static void make_bill(struct s_base *fp,
             rp->p[2] = -y / SCALE;
         }
     }
-
-    if (rp->fl & B_ADDITIVE)
-        fp->mv[rp->mi].fl |= M_ADDITIVE;
 }
 
 static void make_goal(struct s_base *fp,
@@ -1548,9 +1610,9 @@ static void clip_vert(struct s_base *fp,
 
         for (i = 0; i < lp->sc; i++)
         {
-            int si = fp->iv[lp->s0 + i];
+            int sl = fp->iv[lp->s0 + i];
 
-            if (fore_side(p, fp->sv + si))
+            if (fore_side(p, fp->sv + sl))
                 return;
         }
 
@@ -1754,27 +1816,27 @@ static void clip_file(struct s_base *fp)
 
 static int comp_mtrl(const struct b_mtrl *mp, const struct b_mtrl *mq)
 {
-    if (fabs(mp->d[0] - mq->d[0]) > SMALL) return 0;
-    if (fabs(mp->d[1] - mq->d[1]) > SMALL) return 0;
-    if (fabs(mp->d[2] - mq->d[2]) > SMALL) return 0;
-    if (fabs(mp->d[3] - mq->d[3]) > SMALL) return 0;
+    if (fabsf(mp->d[0] - mq->d[0]) > SMALL) return 0;
+    if (fabsf(mp->d[1] - mq->d[1]) > SMALL) return 0;
+    if (fabsf(mp->d[2] - mq->d[2]) > SMALL) return 0;
+    if (fabsf(mp->d[3] - mq->d[3]) > SMALL) return 0;
 
-    if (fabs(mp->a[0] - mq->a[0]) > SMALL) return 0;
-    if (fabs(mp->a[1] - mq->a[1]) > SMALL) return 0;
-    if (fabs(mp->a[2] - mq->a[2]) > SMALL) return 0;
-    if (fabs(mp->a[3] - mq->a[3]) > SMALL) return 0;
+    if (fabsf(mp->a[0] - mq->a[0]) > SMALL) return 0;
+    if (fabsf(mp->a[1] - mq->a[1]) > SMALL) return 0;
+    if (fabsf(mp->a[2] - mq->a[2]) > SMALL) return 0;
+    if (fabsf(mp->a[3] - mq->a[3]) > SMALL) return 0;
 
-    if (fabs(mp->s[0] - mq->s[0]) > SMALL) return 0;
-    if (fabs(mp->s[1] - mq->s[1]) > SMALL) return 0;
-    if (fabs(mp->s[2] - mq->s[2]) > SMALL) return 0;
-    if (fabs(mp->s[3] - mq->s[3]) > SMALL) return 0;
+    if (fabsf(mp->s[0] - mq->s[0]) > SMALL) return 0;
+    if (fabsf(mp->s[1] - mq->s[1]) > SMALL) return 0;
+    if (fabsf(mp->s[2] - mq->s[2]) > SMALL) return 0;
+    if (fabsf(mp->s[3] - mq->s[3]) > SMALL) return 0;
 
-    if (fabs(mp->e[0] - mq->e[0]) > SMALL) return 0;
-    if (fabs(mp->e[1] - mq->e[1]) > SMALL) return 0;
-    if (fabs(mp->e[2] - mq->e[2]) > SMALL) return 0;
-    if (fabs(mp->e[3] - mq->e[3]) > SMALL) return 0;
+    if (fabsf(mp->e[0] - mq->e[0]) > SMALL) return 0;
+    if (fabsf(mp->e[1] - mq->e[1]) > SMALL) return 0;
+    if (fabsf(mp->e[2] - mq->e[2]) > SMALL) return 0;
+    if (fabsf(mp->e[3] - mq->e[3]) > SMALL) return 0;
 
-    if (fabs(mp->h[0] - mq->h[0]) > SMALL) return 0;
+    if (fabsf(mp->h[0] - mq->h[0]) > SMALL) return 0;
 
     if (strncmp(mp->f, mq->f, PATHMAX)) return 0;
 
@@ -1783,9 +1845,9 @@ static int comp_mtrl(const struct b_mtrl *mp, const struct b_mtrl *mq)
 
 static int comp_vert(const struct b_vert *vp, const struct b_vert *vq)
 {
-    if (fabs(vp->p[0] - vq->p[0]) > SMALL) return 0;
-    if (fabs(vp->p[1] - vq->p[1]) > SMALL) return 0;
-    if (fabs(vp->p[2] - vq->p[2]) > SMALL) return 0;
+    if (fabsf(vp->p[0] - vq->p[0]) > SMALL) return 0;
+    if (fabsf(vp->p[1] - vq->p[1]) > SMALL) return 0;
+    if (fabsf(vp->p[2] - vq->p[2]) > SMALL) return 0;
 
     return 1;
 }
@@ -1800,16 +1862,16 @@ static int comp_edge(const struct b_edge *ep, const struct b_edge *eq)
 
 static int comp_side(const struct b_side *sp, const struct b_side *sq)
 {
-    if  (fabs(sp->d - sq->d) > SMALL)  return 0;
-    if (v_dot(sp->n,  sq->n) < 0.9999) return 0;
+    if (fabsf(sp->d - sq->d) > SMALL) return 0;
+    if (v_dot(sp->n,  sq->n) < 1.0f)  return 0;
 
     return 1;
 }
 
 static int comp_texc(const struct b_texc *tp, const struct b_texc *tq)
 {
-    if (fabs(tp->u[0] - tq->u[0]) > SMALL) return 0;
-    if (fabs(tp->u[1] - tq->u[1]) > SMALL) return 0;
+    if (fabsf(tp->u[0] - tq->u[0]) > SMALL) return 0;
+    if (fabsf(tp->u[1] - tq->u[1]) > SMALL) return 0;
 
     return 1;
 }
@@ -2402,7 +2464,7 @@ static int test_lump_side(const struct s_base *fp,
 
     d = v_dot(bsphere, sp->n) - sp->d;
 
-    if (fabs(d) > bsphere[3])
+    if (fabsf(d) > bsphere[3])
         return d > 0 ? 1 : -1;
 
     /* If the given side is part of the given lump, then the lump is behind. */
@@ -2415,7 +2477,7 @@ static int test_lump_side(const struct s_base *fp,
 
     for (vi = 0; vi < lp->vc; vi++)
     {
-        float d = v_dot(fp->vv[fp->iv[lp->v0 + vi]].p, sp->n) - sp->d;
+        d = v_dot(fp->vv[fp->iv[lp->v0 + vi]].p, sp->n) - sp->d;
 
         if (d > 0) f++;
         if (d < 0) b++;
@@ -2519,7 +2581,6 @@ static int node_node(struct s_base *fp, int l0, int lc, float bsphere[][4])
                 {
                     struct b_lump l;
                     float f;
-                    int i;
 
                     for (i = 0; i < 4; i++)
                     {
@@ -2623,11 +2684,56 @@ static void node_file(struct s_base *fp)
 
 /*---------------------------------------------------------------------------*/
 
-static void dump_file(struct s_base *p, const char *name, double t)
+struct dump_stats
+{
+    size_t off;
+    char name[5];
+    char desc[32];
+    int *ptr;
+};
+
+/*
+ * This initializer looked a lot better in the C99 version.
+ */
+static struct dump_stats stats[] = {
+    { offsetof (struct s_base, mc), "mtrl", "materials" },
+    { offsetof (struct s_base, vc), "vert", "vertices" },
+    { offsetof (struct s_base, ec), "edge", "edges" },
+    { offsetof (struct s_base, sc), "side", "sides" },
+    { offsetof (struct s_base, tc), "texc", "texcoords" },
+    { offsetof (struct s_base, oc), "offs", "offsets" },
+    { offsetof (struct s_base, gc), "geom", "geoms" },
+    { offsetof (struct s_base, lc), "lump", "lumps" },
+    { offsetof (struct s_base, pc), "path", "paths" },
+    { offsetof (struct s_base, nc), "node", "nodes" },
+    { offsetof (struct s_base, bc), "body", "bodies" },
+    { offsetof (struct s_base, hc), "item", "items" },
+    { offsetof (struct s_base, zc), "goal", "goals" },
+    { offsetof (struct s_base, wc), "view", "viewpoints" },
+    { offsetof (struct s_base, jc), "jump", "teleports" },
+    { offsetof (struct s_base, xc), "swch", "switches" },
+    { offsetof (struct s_base, rc), "bill", "billboards" },
+    { offsetof (struct s_base, uc), "ball", "balls" },
+    { offsetof (struct s_base, ac), "char", "chars" },
+    { offsetof (struct s_base, dc), "dict", "dicts" },
+    { offsetof (struct s_base, ic), "indx", "indices" }
+};
+
+static void dump_init(struct s_base *fp)
 {
     int i;
+
+    for (i = 0; i < ARRAYSIZE(stats); i++)
+        stats[i].ptr = (int *) &((unsigned char *) fp)[stats[i].off];
+}
+
+static void dump_file(struct s_base *p, const char *name, double t)
+{
+    int i, j;
     int c = 0;
     int n = 0;
+
+    dump_init(p);
 
     /* Count the number of solid lumps. */
 
@@ -2641,28 +2747,58 @@ static void dump_file(struct s_base *p, const char *name, double t)
         if (p->hv[i].t == ITEM_COIN)
             c += p->hv[i].n;
 
+#if ENABLE_RADIANT_CONSOLE
+    if (bcast_socket)
+    {
+        char msg[512];
+        char buf[64];
+
+        sprintf(msg, "%s (%d/$%d) %.3f\n", name, n, c, t);
+
+        for (i = 0; i < ARRAYSIZE(stats); i++)
+        {
+            sprintf(buf, "\t%d %s\n", *stats[i].ptr, stats[i].desc);
+            SAFECAT(msg, buf);
+        }
+
+        bcast_send_msg(BCAST_STD, msg);
+    }
+#endif
+
     if (csv_output)
-        printf("%s,%d,%d,%.3f"
-               "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,"
-               "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
-               name, n, c, t,
-               p->mc, p->vc, p->ec, p->sc, p->tc,
-               p->oc, p->gc, p->lc, p->pc, p->nc, p->bc,
-               p->hc, p->zc, p->wc, p->jc, p->xc,
-               p->rc, p->uc, p->ac, p->dc, p->ic);
+    {
+        printf("name,n,c,t,");
+
+        for (i = 0; i < ARRAYSIZE(stats); i++)
+            printf("%s%s", stats[i].name, (i + 1 < ARRAYSIZE(stats) ?
+                                           "," : "\n"));
+        printf("%s,%d,%d,%.3f,", name, n, c, t);
+
+        for (i = 0; i < ARRAYSIZE(stats); i++)
+            printf("%d%s", *stats[i].ptr, (i + 1 < ARRAYSIZE(stats) ?
+                                           "," : "\n"));
+    }
     else
-        printf("%s (%d/$%d) %.3f\n"
-               "  mtrl  vert  edge  side  texc"
-               "  offs  geom  lump  path  node  body\n"
-               "%6d%6d%6d%6d%6d%6d%6d%6d%6d%6d%6d\n"
-               "  item  goal  view  jump  swch"
-               "  bill  ball  char  dict  indx\n"
-               "%6d%6d%6d%6d%6d%6d%6d%6d%6d%6d\n",
-               name, n, c, t,
-               p->mc, p->vc, p->ec, p->sc, p->tc,
-               p->oc, p->gc, p->lc, p->pc, p->nc, p->bc,
-               p->hc, p->zc, p->wc, p->jc, p->xc,
-               p->rc, p->uc, p->ac, p->dc, p->ic);
+    {
+        const int COLS = 11;
+
+        printf("%s (%d/$%d) %.3f\n", name, n, c, t);
+
+        for (i = 0, j = 0; i < ARRAYSIZE(stats); i++)
+        {
+            printf("%6.6s", stats[i].name);
+
+            if ((i + 1) % COLS == 0 || i + 1 == ARRAYSIZE(stats))
+            {
+                printf("\n");
+
+                for (; j <= i; j++)
+                    printf("%6d", *stats[j].ptr);
+
+                printf("\n");
+            }
+        }
+    }
 }
 
 int main(int argc, char *argv[])
@@ -2672,14 +2808,15 @@ int main(int argc, char *argv[])
     struct s_base f;
     fs_file fin;
 
-    if (!fs_init(argv[0]))
+    struct timeval time0;
+    struct timeval time1;
+
+    if (!fs_init(argc > 0 ? argv[0] : NULL))
     {
         fprintf(stderr, "Failure to initialize virtual file system: %s\n",
                 fs_error());
         return 1;
     }
-
-    verbose = !!getenv("MAPC_VERBOSE");
 
     if (argc > 2)
     {
@@ -2691,6 +2828,14 @@ int main(int argc, char *argv[])
         {
             if (strcmp(argv[argi], "--debug") == 0) debug_output = 1;
             if (strcmp(argv[argi], "--csv")   == 0)   csv_output = 1;
+#if ENABLE_RADIANT_CONSOLE
+            if (strcmp(argv[argi], "--bcast") == 0) bcast_init();
+#endif
+            if (strcmp(argv[argi], "--data")  == 0)
+            {
+                if (++argi < argc)
+                    fs_add_path(argv[argi]);
+            }
         }
 
         strncpy(src, argv[1], MAXSTR - 1);
@@ -2704,7 +2849,7 @@ int main(int argc, char *argv[])
         fs_add_path     (dir_name(src));
         fs_set_write_dir(dir_name(dst));
 
-        if ((fin = fs_open(base_name(src), "r")))
+        if ((fin = fs_open_read(base_name(src))))
         {
             if (!fs_add_path_with_archives(argv[2]))
             {
@@ -2714,7 +2859,7 @@ int main(int argc, char *argv[])
                 return 1;
             }
 
-            gettimeofday(&t0, 0);
+            gettimeofday(&time0, 0);
             {
                 init_file(&f);
                 read_map(&f, fin);
@@ -2731,15 +2876,20 @@ int main(int argc, char *argv[])
 
                 sol_stor_base(&f, base_name(dst));
             }
-            gettimeofday(&t1, 0);
+            gettimeofday(&time1, 0);
 
-            dump_file(&f, dst, (t1.tv_sec  - t0.tv_sec) +
-                               (t1.tv_usec - t0.tv_usec) / 1000000.0);
+            dump_file(&f, dst, (time1.tv_sec  - time0.tv_sec) +
+                               (time1.tv_usec - time0.tv_usec) / 1000000.0);
 
             fs_close(fin);
 
             free_imagedata();
         }
+
+#if ENABLE_RADIANT_CONSOLE
+        bcast_quit();
+#endif
+
     }
     else fprintf(stderr, "Usage: %s <map> <data> [--debug] [--csv]\n", argv[0]);
 

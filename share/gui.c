@@ -24,9 +24,10 @@
 #include "vec3.h"
 #include "gui.h"
 #include "common.h"
+#include "font.h"
+#include "theme.h"
 
 #include "fs.h"
-#include "fs_rwops.h"
 
 /*---------------------------------------------------------------------------*/
 
@@ -73,6 +74,7 @@ struct widget
     int     flags;
     int     token;
     int     value;
+    int     font;
     int     size;
     int     rect;
 
@@ -103,7 +105,6 @@ static int           hovered;
 static int           clicked;
 static int           padding;
 static int           borders[4];
-static TTF_Font     *font[3] = { NULL, NULL, NULL };
 
 /* Digit widgets for the HUD. */
 
@@ -114,17 +115,23 @@ static int digit_id[3][11];
 static int cursor_id = 0;
 static int cursor_st = 0;
 
-/* Font data access. */
+/* GUI theme. */
 
-static void      *fontdata;
-static int        fontdatalen;
-static SDL_RWops *fontrwops;
+static struct theme curr_theme;
 
 /*---------------------------------------------------------------------------*/
 
 static int gui_hot(int id)
 {
     return (widget[id].flags & GUI_STATE);
+}
+
+static int gui_size(void)
+{
+    const int w = video.device_w;
+    const int h = video.device_h;
+
+    return MIN(w, h);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -155,16 +162,6 @@ struct vert
 static struct vert vert_buf[WIDGET_MAX * WIDGET_VERT];
 static GLuint      vert_vbo = 0;
 static GLuint      vert_ebo = 0;
-
-static GLuint      rect_tex[4] = {
-    0,             /* off and inactive    */
-    0,             /* off and   active    */
-    0,             /* on  and inactive    */
-    0              /* on  and   active    */
-};
-
-static float rect_t[4];
-static float rect_s[4];
 
 /*---------------------------------------------------------------------------*/
 
@@ -276,7 +273,7 @@ static void gui_geom_rect(int id, int x, int y, int w, int h, int f)
 
     for (i = 0; i < 4; i++)
         for (j = 0; j < 4; j++)
-            set_vert(p++, X[i], Y[j], rect_s[i], rect_t[j], gui_wht);
+            set_vert(p++, X[i], Y[j], curr_theme.s[i], curr_theme.t[j], gui_wht);
 
     for (i = 0; i < RECT_ELEM; i++)
         rect_elem[i] = id * WIDGET_VERT + rect_elem_base[i];
@@ -421,196 +418,109 @@ static void gui_geom_widget(int id, int flags)
 
 /*---------------------------------------------------------------------------*/
 
-static const char *gui_font_path(void)
+#define FONT_MAX 4
+
+static struct font fonts[FONT_MAX];
+static int         fontc;
+
+static int font_sizes[3];
+
+static int gui_font_load(const char *path)
 {
-    const char *path;
+    int i;
 
-    path = _(GUI_FACE);
+    /* Find a previously loaded font. */
 
-    if (!fs_exists(path))
+    for (i = 0; i < fontc; i++)
+        if (strcmp(fonts[i].path, path) == 0)
+            return i;
+
+    /* Load a new font. */
+
+    if (fontc < FONT_MAX)
     {
-        fprintf(stderr, L_("Font '%s' doesn't exist, trying default font.\n"),
-                path);
-
-        path = GUI_FACE;
+        if (font_load(&fonts[fontc], path, font_sizes))
+        {
+            fontc++;
+            return fontc - 1;
+        }
     }
 
-    return path;
+    /* Return index of default font. */
+
+    return 0;
 }
 
-static int gui_font_init(const char *path)
+static void gui_font_quit(void);
+
+static void gui_font_init(void)
 {
-    int w = config_get_d(CONFIG_WIDTH);
-    int h = config_get_d(CONFIG_HEIGHT);
-    int s = (h < w) ? h : w;
+    gui_font_quit();
 
-    if (TTF_Init() == 0)
+    if (font_init())
     {
-        int s0 = s / 26;
-        int s1 = s / 13;
-        int s2 = s /  7;
+        int s = gui_size();
 
-        /* Load the font. */
+        font_sizes[0] = s / 26;
+        font_sizes[1] = s / 13;
+        font_sizes[2] = s /  7;
 
-        if ((fontdata = fs_load(path, &fontdatalen)))
-        {
-            fontrwops = SDL_RWFromConstMem(fontdata, fontdatalen);
+        /* Load the default font at index 0. */
 
-            /* Load small, medium, and large typefaces. */
-
-            font[GUI_SML] = TTF_OpenFontRW(fontrwops, 0, s0);
-
-            SDL_RWseek(fontrwops, 0, SEEK_SET);
-            font[GUI_MED] = TTF_OpenFontRW(fontrwops, 0, s1);
-
-            SDL_RWseek(fontrwops, 0, SEEK_SET);
-            font[GUI_LRG] = TTF_OpenFontRW(fontrwops, 0, s2);
-
-            /* fontrwops remains open. */
-        }
-        else
-        {
-            fontrwops = NULL;
-
-            font[GUI_SML] = NULL;
-            font[GUI_MED] = NULL;
-            font[GUI_LRG] = NULL;
-
-            fprintf(stderr, L_("Could not load font '%s'.\n"), path);
-        }
-
-        padding = s / 60;
-
-        return 1;
+        gui_font_load(*curr_lang.font ? curr_lang.font : GUI_FACE);
     }
-    return 0;
 }
 
 static void gui_font_quit(void)
 {
-    if (font[GUI_LRG]) TTF_CloseFont(font[GUI_LRG]);
-    if (font[GUI_MED]) TTF_CloseFont(font[GUI_MED]);
-    if (font[GUI_SML]) TTF_CloseFont(font[GUI_SML]);
-
-    if (fontrwops) SDL_RWclose(fontrwops);
-    if (fontdata)  free(fontdata);
-
-    TTF_Quit();
-}
-
-static GLuint gui_rect_image(const char *path)
-{
-    const int W = config_get_d(CONFIG_WIDTH);
-    const int H = config_get_d(CONFIG_HEIGHT);
-
-    int W2, H2;
-
-    int w, h, b;
-    void *p;
-
-    GLuint o = 0;
-
-    /*
-     * Disable mipmapping and do a manual downscale.  Heuristic for
-     * downscaling the texture: assume target size to be roughly 1/16
-     * of a full screen texture, smallest size being 32x32.
-     */
-
-    image_near2(&W2, &H2, W, H);
-
-    W2 = MAX(W2 / 16, 32);
-    H2 = MAX(H2 / 16, 32);
-
-    if ((p = image_load(path, &w, &h, &b)))
-    {
-        void *q;
-
-        /* Prefer a small scale factor. */
-
-        int s = MAX(w, h) / MAX(W2, H2);
-
-        if (s > 1 && (q = image_scale(p, w, h, b, &w, &h, s)))
-        {
-            free(p);
-            p = q;
-        }
-
-        o = make_texture(p, w, h, b, 0);
-
-        free(p);
-        p = NULL;
-    }
-
-    return o;
-}
-
-static void gui_rect_init(void)
-{
-    char buff[MAXSTR];
-    fs_file fp;
-
-    float b[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-    float s[4] = { 0.25f, 0.25f, 0.25f, 0.25f };
-
     int i;
 
-    /* Load description. */
+    for (i = 0; i < fontc; i++)
+        font_free(&fonts[i]);
 
-    if ((fp = fs_open("gui/desc.txt", "r")))
-    {
-        while ((fs_gets(buff, sizeof (buff), fp)))
-        {
-            strip_newline(buff);
+    fontc = 0;
 
-            if (strncmp(buff, "slice ", 6) == 0)
-                sscanf(buff + 6, "%f %f %f %f", &s[0], &s[1], &s[2], &s[3]);
-
-            if (strncmp(buff, "scale ", 6) == 0)
-                sscanf(buff + 6, "%f %f %f %f", &b[0], &b[1], &b[2], &b[3]);
-        }
-
-        fs_close(fp);
-    }
-
-    rect_s[0] =  0.0f;
-    rect_s[1] =  s[0];
-    rect_s[2] = (1.0f - s[1]);
-    rect_s[3] =  1.0f;
-
-    rect_t[0] =  1.0f;
-    rect_t[1] = (1.0 - s[2]);
-    rect_t[2] =  s[3];
-    rect_t[3] =  0.0f;
-
-    for (i = 0; i < 4; i++)
-        borders[i] = padding * b[i];
-
-    /* Load textures. */
-
-    rect_tex[0] = gui_rect_image("gui/back-plain.png");
-    rect_tex[1] = gui_rect_image("gui/back-plain-focus.png");
-    rect_tex[2] = gui_rect_image("gui/back-hilite.png");
-    rect_tex[3] = gui_rect_image("gui/back-hilite-focus.png");
+    font_quit();
 }
 
-static void gui_rect_quit(void)
+/*---------------------------------------------------------------------------*/
+
+static void gui_theme_quit(void)
 {
-    glDeleteTextures(4, rect_tex);
+    theme_free(&curr_theme);
 }
+
+static void gui_theme_init(void)
+{
+    gui_theme_quit();
+
+    theme_load(&curr_theme, config_get_s(CONFIG_THEME));
+}
+
+/*---------------------------------------------------------------------------*/
 
 void gui_init(void)
 {
+    const int s = gui_size();
+
     int i, j;
 
     memset(widget, 0, sizeof (struct widget) * WIDGET_MAX);
 
+    /* Compute default widget/text padding. */
+
+    padding = s / 60;
+
+    for (i = 0; i < 4; i++)
+        borders[i] = padding;
+
     /* Initialize font rendering. */
 
-    gui_font_init(gui_font_path());
+    gui_font_init();
 
-    /* Initialize rectangle resources. */
+    /* Initialize GUI theme. */
 
-    gui_rect_init();
+    gui_theme_init();
 
     /* Initialize the VBOs. */
 
@@ -685,9 +595,9 @@ void gui_free(void)
 
     gui_font_quit();
 
-    /* Release rectangle resources. */
+    /* Release theme resources. */
 
-    gui_rect_quit();
+    gui_theme_quit();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -707,6 +617,7 @@ static int gui_widget(int pd, int type)
             widget[id].flags  = 0;
             widget[id].token  = 0;
             widget[id].value  = 0;
+            widget[id].font   = 0;
             widget[id].size   = 0;
             widget[id].rect   = GUI_ALL;
             widget[id].w      = 0;
@@ -736,7 +647,7 @@ static int gui_widget(int pd, int type)
             return id;
         }
 
-    fprintf(stderr, "Out of widget IDs\n");
+    log_printf("Out of widget IDs\n");
 
     return 0;
 }
@@ -749,12 +660,7 @@ int gui_filler(int pd) { return gui_widget(pd, GUI_FILLER); }
 
 /*---------------------------------------------------------------------------*/
 
-struct size
-{
-    int w, h;
-};
-
-static struct size gui_measure(const char *text, TTF_Font *font)
+static struct size gui_measure_ttf(const char *text, TTF_Font *font)
 {
     struct size size = { 0, 0 };
 
@@ -763,6 +669,13 @@ static struct size gui_measure(const char *text, TTF_Font *font)
 
     return size;
 }
+
+struct size gui_measure(const char *text, int size)
+{
+    return gui_measure_ttf(text, fonts[0].ttf[size]);
+}
+
+/*---------------------------------------------------------------------------*/
 
 static char *gui_trunc_head(const char *text,
                             const int maxwidth,
@@ -780,7 +693,7 @@ static char *gui_trunc_head(const char *text,
 
         str = concat_string("...", text + mid, NULL);
 
-        if (gui_measure(str, font).w <= maxwidth)
+        if (gui_measure_ttf(str, font).w <= maxwidth)
             right = mid;
         else
             left = mid;
@@ -810,7 +723,7 @@ static char *gui_trunc_tail(const char *text,
         memcpy(str,       text,  mid);
         memcpy(str + mid, "...", sizeof ("..."));
 
-        if (gui_measure(str, font).w <= maxwidth)
+        if (gui_measure_ttf(str, font).w <= maxwidth)
             left = mid;
         else
             right = mid;
@@ -831,7 +744,7 @@ static char *gui_truncate(const char *text,
                           TTF_Font *font,
                           enum trunc trunc)
 {
-    if (gui_measure(text, font).w <= maxwidth)
+    if (gui_measure_ttf(text, font).w <= maxwidth)
         return strdup(text);
 
     switch (trunc)
@@ -855,6 +768,8 @@ void gui_set_image(int id, const char *file)
 
 void gui_set_label(int id, const char *text)
 {
+    TTF_Font *ttf = fonts[widget[id].font].ttf[widget[id].size];
+
     int w = 0;
     int h = 0;
 
@@ -862,14 +777,12 @@ void gui_set_label(int id, const char *text)
 
     glDeleteTextures(1, &widget[id].image);
 
-    str = gui_truncate(text, widget[id].w - padding,
-                       font[widget[id].size],
-                       widget[id].trunc);
+    str = gui_truncate(text, widget[id].w - padding, ttf, widget[id].trunc);
 
     widget[id].image = make_image_from_font(NULL, NULL,
                                             &widget[id].text_w,
                                             &widget[id].text_h,
-                                            str, font[widget[id].size], 0);
+                                            str, ttf, 0);
     w = widget[id].text_w;
     h = widget[id].text_h;
 
@@ -945,6 +858,11 @@ void gui_set_trunc(int id, enum trunc trunc)
     widget[id].trunc = trunc;
 }
 
+void gui_set_font(int id, const char *path)
+{
+    widget[id].font = gui_font_load(path);
+}
+
 void gui_set_fill(int id)
 {
     widget[id].flags |= GUI_FILL;
@@ -1015,12 +933,14 @@ int gui_state(int pd, const char *text, int size, int token, int value)
 
     if ((id = gui_widget(pd, GUI_BUTTON)))
     {
+        TTF_Font *ttf = fonts[widget[id].font].ttf[size];
+
         widget[id].flags |= (GUI_STATE | GUI_RECT);
 
         widget[id].image = make_image_from_font(NULL, NULL,
                                                 &widget[id].text_w,
                                                 &widget[id].text_h,
-                                                text, font[size], 0);
+                                                text, ttf, 0);
         widget[id].w     = widget[id].text_w;
         widget[id].h     = widget[id].text_h;
         widget[id].size  = size;
@@ -1037,10 +957,12 @@ int gui_label(int pd, const char *text, int size, const GLubyte *c0,
 
     if ((id = gui_widget(pd, GUI_LABEL)))
     {
+        TTF_Font *ttf = fonts[widget[id].font].ttf[size];
+
         widget[id].image = make_image_from_font(NULL, NULL,
                                                 &widget[id].text_w,
                                                 &widget[id].text_h,
-                                                text, font[size], 0);
+                                                text, ttf, 0);
         widget[id].w      = widget[id].text_w;
         widget[id].h      = widget[id].text_h;
         widget[id].size   = size;
@@ -1240,9 +1162,9 @@ static void gui_button_up(int id)
 
     /* Padded text elements look a little nicer. */
 
-    if (widget[id].w < config_get_d(CONFIG_WIDTH))
+    if (widget[id].w < video.device_w)
         widget[id].w += padding;
-    if (widget[id].h < config_get_d(CONFIG_HEIGHT))
+    if (widget[id].h < video.device_h)
         widget[id].h += padding;
 
     /* A button should be at least wide enough to accomodate the borders. */
@@ -1447,8 +1369,8 @@ void gui_layout(int id, int xd, int yd)
 {
     int x, y;
 
-    int w, W = config_get_d(CONFIG_WIDTH);
-    int h, H = config_get_d(CONFIG_HEIGHT);
+    int w, W = video.device_w;
+    int h, H = video.device_h;
 
     gui_widget_up(id);
 
@@ -1543,7 +1465,7 @@ static void gui_paint_rect(int id, int st, int flags)
             glTranslatef((GLfloat) (widget[id].x + widget[id].w / 2),
                          (GLfloat) (widget[id].y + widget[id].h / 2), 0.f);
 
-            glBindTexture(GL_TEXTURE_2D, rect_tex[i]);
+            glBindTexture(GL_TEXTURE_2D, curr_theme.tex[i]);
             draw_rect(id);
         }
         glPopMatrix();
@@ -1581,7 +1503,7 @@ static void gui_paint_array(int id)
         GLfloat cy = widget[id].y + widget[id].h / 2.0f;
         GLfloat ck = widget[id].scale;
 
-        if (1.0 < ck || ck < 1.0)
+        if (1.0f < ck || ck < 1.0f)
         {
             glTranslatef(+cx, +cy, 0.0f);
             glScalef(ck, ck, ck);
@@ -1646,11 +1568,11 @@ static void gui_paint_count(int id)
 
             for (j = widget[id].value; j; j /= 10)
             {
-                int id = digit_id[i][j % 10];
+                int jd = digit_id[i][j % 10];
 
-                glBindTexture(GL_TEXTURE_2D, widget[id].image);
-                draw_text(id);
-                glTranslatef((GLfloat) -widget[id].text_w, 0.0f, 0.0f);
+                glBindTexture(GL_TEXTURE_2D, widget[jd].image);
+                draw_text(jd);
+                glTranslatef((GLfloat) -widget[jd].text_w, 0.0f, 0.0f);
             }
         }
         else if (widget[id].value == 0)
@@ -1788,7 +1710,6 @@ void gui_paint(int id)
     {
         video_push_ortho();
         {
-            glDisable(GL_LIGHTING);
             glDisable(GL_DEPTH_TEST);
             {
                 draw_enable(GL_FALSE, GL_TRUE, GL_TRUE);
@@ -1804,7 +1725,6 @@ void gui_paint(int id)
                 glColor4ub(gui_wht[0], gui_wht[1], gui_wht[2], gui_wht[3]);
             }
             glEnable(GL_DEPTH_TEST);
-            glEnable(GL_LIGHTING);
         }
         video_pop_matrix();
     }
@@ -2214,12 +2134,12 @@ int gui_stick(int id, int a, float v, int bump)
 
     /* Find a new active widget in the direction of joystick motion. */
 
-    if (config_tst_d(CONFIG_JOYSTICK_AXIS_X, a))
+    if      (config_tst_d(CONFIG_JOYSTICK_AXIS_X0, a))
     {
         if (v < 0) jd = gui_wrap_L(id, active);
         if (v > 0) jd = gui_wrap_R(id, active);
     }
-    else if (config_tst_d(CONFIG_JOYSTICK_AXIS_Y, a))
+    else if (config_tst_d(CONFIG_JOYSTICK_AXIS_Y0, a))
     {
         if (v < 0) jd = gui_wrap_U(id, active);
         if (v > 0) jd = gui_wrap_D(id, active);
@@ -2250,6 +2170,56 @@ int gui_click(int b, int d)
         }
     }
     return 0;
+}
+
+/*---------------------------------------------------------------------------*/
+
+int gui_navig(int id, int total, int first, int step)
+{
+    int pages = (int) ceil((double) total / step);
+    int page = first / step + 1;
+
+    int prev = (page > 1);
+    int next = (page < pages);
+
+    int jd, kd;
+
+    if ((jd = gui_hstack(id)))
+    {
+        if (next || prev)
+        {
+            gui_maybe(jd, " > ", GUI_NEXT, GUI_NONE, next);
+
+            if ((kd = gui_label(jd, "999/999", GUI_SML, gui_wht, gui_wht)))
+            {
+                char str[16];
+                sprintf(str, "%d/%d", page, pages);
+                gui_set_label(kd, str);
+            }
+
+            gui_maybe(jd, " < ", GUI_PREV, GUI_NONE, prev);
+        }
+
+        gui_space(jd);
+
+        gui_start(jd, _("Back"), GUI_SML, GUI_BACK, 0);
+    }
+    return jd;
+}
+
+int gui_maybe(int id, const char *label, int etoken, int dtoken, int enabled)
+{
+    int bd;
+
+    if (!enabled)
+    {
+        bd = gui_state(id, label, GUI_SML, dtoken, 0);
+        gui_set_color(bd, gui_gry, gui_gry);
+    }
+    else
+        bd = gui_state(id, label, GUI_SML, etoken, 0);
+
+    return bd;
 }
 
 /*---------------------------------------------------------------------------*/

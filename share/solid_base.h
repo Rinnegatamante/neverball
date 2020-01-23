@@ -84,8 +84,9 @@
 
 /* Material type flags */
 
-#define M_ALPHA_TEST  (1 << 10)
-#define M_SEMI_OPAQUE (1 <<  9)
+#define M_LIT         (1 << 11)
+#define M_PARTICLE    (1 << 10)
+#define M_ALPHA_TEST  (1 <<  9)
 #define M_REFLECTIVE  (1 <<  8)
 #define M_TRANSPARENT (1 <<  7)
 #define M_SHADOWED    (1 <<  6)
@@ -100,8 +101,7 @@
 
 #define B_EDGE     1
 #define B_FLAT     2
-#define B_ADDITIVE 4
-#define B_NOFACE   8
+#define B_NOFACE   4
 
 /* Lump flags. */
 
@@ -133,11 +133,9 @@ struct b_mtrl
 
     char   f[PATHMAX];                         /* texture file name          */
 
-    /* M_SEMI_OPAQUE */
-    float semi_opaque;                         /* alpha threshold            */
-
     /* M_ALPHA_TEST */
-    float alpha_test;                          /* reference value            */
+    int   alpha_func;                          /* comparison function        */
+    float alpha_ref;                           /* reference value            */
 };
 
 struct b_vert
@@ -331,6 +329,11 @@ struct s_base
     struct b_view *wv;
     struct b_dict *dv;
     int           *iv;
+
+    /*
+     * A mapping from internal to cached material indices.
+     */
+    int *mtrls;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -356,6 +359,10 @@ struct path
 
 extern const struct path tex_paths[4];
 extern const struct path mtrl_paths[2];
+
+/*---------------------------------------------------------------------------*/
+
+int mtrl_read(struct b_mtrl *, const char *);
 
 /*---------------------------------------------------------------------------*/
 

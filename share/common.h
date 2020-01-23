@@ -22,9 +22,16 @@
 
 #include <time.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdarg.h>
 #include "fs.h"
 
 /* Random stuff. */
+
+#ifndef MAXSTR
+#define MAXSTR 256
+#endif
 
 #if defined(__GNUC__) && !defined(__BLACKBERRY__)
 #define NULL_TERMINATED __attribute__ ((__sentinel__))
@@ -39,7 +46,7 @@
 
 #define CLAMP(a, b, c) MIN(MAX(a, b), c)
 
-#define SIGN(n) ((n) < 0 ? -1 : ((n) ? +1 : 0))
+#define SIGN(n) ((n) < 0 ? -1 : ((n) > 0 ? +1 : 0))
 #define ROUND(f) ((int) ((f) + 0.5f * SIGN(f)))
 
 #define TIME_TO_MS(t) ROUND((t) * 1000.0f)
@@ -74,6 +81,15 @@ char *concat_string(const char *first, ...) NULL_TERMINATED;
 #define str_starts_with(s, h) (strncmp((s), (h), strlen(h)) == 0)
 #define str_ends_with(s, t) ((strlen(s) >= strlen(t)) && strcmp((s) + strlen(s) - strlen(t), (t)) == 0)
 
+/*
+ * Declaring vsnprintf with the C99 signature, even though we're
+ * claiming to be ANSI C. This is probably bad but is not known to not
+ * work.
+ */
+#ifndef __APPLE__
+extern int vsnprintf(char *, size_t, const char *, va_list);
+#endif
+
 /* Time. */
 
 time_t make_time_from_utc(struct tm *);
@@ -83,6 +99,7 @@ const char *date_to_str(time_t);
 
 int  file_exists(const char *);
 int  file_rename(const char *, const char *);
+int  file_size(const char *);
 void file_copy(FILE *fin, FILE *fout);
 
 /* Paths. */
@@ -91,6 +108,7 @@ int path_is_sep(int);
 int path_is_abs(const char *);
 
 char *path_join(const char *, const char *);
+char *path_normalize(char *);
 
 const char *path_last_sep(const char *);
 const char *path_next_sep(const char *);
@@ -98,5 +116,9 @@ const char *path_next_sep(const char *);
 const char *base_name(const char *name);
 const char *base_name_sans(const char *name, const char *suffix);
 const char *dir_name(const char *name);
+
+/* Environment */
+
+int set_env_var(const char *, const char *);
 
 #endif

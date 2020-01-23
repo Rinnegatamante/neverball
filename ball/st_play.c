@@ -437,11 +437,11 @@ static void play_loop_point(int id, int x, int y, int dx, int dy)
 
 static void play_loop_stick(int id, int a, float v, int bump)
 {
-    if (config_tst_d(CONFIG_JOYSTICK_AXIS_X, a))
+    if (config_tst_d(CONFIG_JOYSTICK_AXIS_X0, a))
         game_set_z(v);
-    if (config_tst_d(CONFIG_JOYSTICK_AXIS_Y, a))
+    if (config_tst_d(CONFIG_JOYSTICK_AXIS_Y0, a))
         game_set_x(v);
-    if (config_tst_d(CONFIG_JOYSTICK_AXIS_U, a))
+    if (config_tst_d(CONFIG_JOYSTICK_AXIS_X1, a))
     {
         if      (v > 0.0f)
             rot_set(DIR_R, +v, 1);
@@ -579,8 +579,8 @@ static void look_paint(int id, float t)
 
 static void look_point(int id, int x, int y, int dx, int dy)
 {
-    phi   +=  90.0f * dy / config_get_d(CONFIG_HEIGHT);
-    theta += 180.0f * dx / config_get_d(CONFIG_WIDTH);
+    phi   +=  90.0f * dy / video.device_h;
+    theta += 180.0f * dx / video.device_w;
 
     if (phi > +90.0f) phi = +90.0f;
     if (phi < -90.0f) phi = -90.0f;

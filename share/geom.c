@@ -20,13 +20,16 @@
 
 #include "glext.h"
 #include "geom.h"
+#include "ball.h"
 #include "part.h"
 #include "vec3.h"
 #include "image.h"
 #include "config.h"
 #include "video.h"
+#include "hmd.h"
 
 #include "solid_draw.h"
+#include "solid_sim.h"
 
 /*---------------------------------------------------------------------------*/
 
@@ -282,6 +285,27 @@ int tex_env_stage(int stage)
 
 /*---------------------------------------------------------------------------*/
 
+enum
+{
+    GEOM_NONE = -1,
+
+    GEOM_COIN,
+    GEOM_COIN5,
+    GEOM_COIN10,
+    GEOM_GROW,
+    GEOM_SHRINK,
+
+    GEOM_MAX
+};
+
+static const char item_sols[GEOM_MAX][PATHMAX] = {
+    "item/coin/coin.sol",
+    "item/coin/coin5.sol",
+    "item/coin/coin10.sol",
+    "item/grow/grow.sol",
+    "item/shrink/shrink.sol"
+};
+
 static struct s_full beam;
 static struct s_full jump;
 static struct s_full goal;
@@ -289,6 +313,7 @@ static struct s_full flag;
 static struct s_full mark;
 static struct s_full vect;
 static struct s_full back;
+static struct s_full item[GEOM_MAX];
 
 static int back_state = 0;
 
@@ -296,22 +321,114 @@ static int back_state = 0;
 
 void geom_init(void)
 {
+    int i;
+
     sol_load_full(&beam, "geom/beam/beam.sol", 0);
     sol_load_full(&jump, "geom/jump/jump.sol", 0);
     sol_load_full(&goal, "geom/goal/goal.sol", 0);
     sol_load_full(&flag, "geom/flag/flag.sol", 0);
     sol_load_full(&mark, "geom/mark/mark.sol", 0);
     sol_load_full(&vect, "geom/vect/vect.sol", 0);
+
+    for (i = 0; i < GEOM_MAX; i++)
+        sol_load_full(&item[i], item_sols[i], 0);
 }
 
 void geom_free(void)
 {
+    int i;
+
     sol_free_full(&vect);
     sol_free_full(&mark);
     sol_free_full(&flag);
     sol_free_full(&goal);
     sol_free_full(&jump);
     sol_free_full(&beam);
+
+    for (i = 0; i < GEOM_MAX; i++)
+        sol_free_full(&item[i]);
+}
+
+void geom_step(float dt)
+{
+    int i;
+
+    sol_move(&goal.vary, NULL, dt);
+    sol_move(&jump.vary, NULL, dt);
+
+    for (i = 0; i < GEOM_MAX; i++)
+        sol_move(&item[i].vary, NULL, dt);
+
+    ball_step(dt);
+}
+
+/*---------------------------------------------------------------------------*/
+
+static struct s_draw *item_file(const struct v_item *hp)
+{
+    int g = GEOM_COIN;
+
+    if (hp)
+    {
+        switch (hp->t)
+        {
+        case ITEM_GROW:   g = GEOM_GROW;   break;
+        case ITEM_SHRINK: g = GEOM_SHRINK; break;
+        default:
+            if      (hp->n >= 10) g = GEOM_COIN10;
+            else if (hp->n >= 5)  g = GEOM_COIN5;
+            else                  g = GEOM_COIN;
+            break;
+        }
+    }
+
+    return &item[g].draw;
+}
+
+void item_color(const struct v_item *hp, float *c)
+{
+    const struct s_draw *draw = item_file(hp);
+
+    c[0] = 1.0f;
+    c[1] = 1.0f;
+    c[2] = 1.0f;
+    c[3] = 1.0f;
+
+    if (draw && draw->base && draw->base->mtrls)
+    {
+        struct mtrl *mp = mtrl_get(draw->base->mtrls[0]);
+
+        if (mp)
+        {
+            c[0] = mp->base.d[0];
+            c[1] = mp->base.d[1];
+            c[2] = mp->base.d[2];
+            c[3] = mp->base.d[3];
+        }
+    }
+}
+
+void item_draw(struct s_rend *rend,
+               const struct v_item *hp,
+               const GLfloat *M, float t)
+{
+    const GLfloat s = ITEM_RADIUS;
+
+    struct s_draw *draw = item_file(hp);
+
+    glPushMatrix();
+    {
+        glScalef(s, s, s);
+
+        glDepthMask(GL_FALSE);
+        {
+            sol_bill(draw, rend, M, t);
+        }
+        glDepthMask(GL_TRUE);
+
+        sol_draw(draw, rend, 0, 1);
+    }
+    glPopMatrix();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -326,7 +443,8 @@ void back_init(const char *name)
 
     if (sol_load_full(&back, "geom/back/back.sol", 0))
     {
-        back.draw.mv[0].o = make_image_from_file(name, IF_MIPMAP);
+        struct mtrl *mp = mtrl_get(back.base.mtrls[0]);
+        mp->o = make_image_from_file(name, IF_MIPMAP);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         back_state = 1;
     }
@@ -342,106 +460,60 @@ void back_free(void)
 
 /*---------------------------------------------------------------------------*/
 
-static void jump_part_draw(struct s_rend *rend, GLfloat s, GLfloat a)
-{
-    glMatrixMode(GL_TEXTURE);
-    glTranslatef(s, 0.0f, 0.0f);
-    glMatrixMode(GL_MODELVIEW);
+/* Draw a column of light with position p, color c, radius r, and height h. */
 
-    glRotatef(a, 0.0f, 1.0f, 0.0f);
-    sol_draw(&jump.draw, rend, 1, 1);
-    glScalef(0.9f, 0.9f, 0.9f);
-}
-
-static void goal_part_draw(struct s_rend *rend, GLfloat s)
-{
-    glMatrixMode(GL_TEXTURE);
-    glTranslatef(0.0f, -s, 0.0f);
-    glMatrixMode(GL_MODELVIEW);
-
-    sol_draw(&goal.draw, rend, 1, 1);
-    glScalef(0.8f, 1.1f, 0.8f);
-}
-
-/*---------------------------------------------------------------------------*/
-
-void goal_draw(struct s_rend *rend, float t)
+void beam_draw(struct s_rend *rend, const GLfloat *p,
+                                    const GLfloat *c, GLfloat r, GLfloat h)
 {
     glPushMatrix();
     {
-        glScalef(1.0f, 3.0f, 1.0f);
-        glColor4f(1.0f, 1.0f, 0.0f, 0.5f);
-
+        glTranslatef(p[0], p[1], p[2]);
+        glScalef(r, h, r);
+        glColor4f(c[0], c[1], c[2], c[3]);
         sol_draw(&beam.draw, rend, 1, 1);
-
-        goal_part_draw(rend, t * 0.10f);
-        goal_part_draw(rend, t * 0.10f);
-        goal_part_draw(rend, t * 0.10f);
-        goal_part_draw(rend, t * 0.10f);
-
-        glMatrixMode(GL_TEXTURE);
-        glLoadIdentity();
-        glMatrixMode(GL_MODELVIEW);
-
-        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
     }
     glPopMatrix();
 }
 
-void jump_draw(struct s_rend *rend, float t, int h)
+void goal_draw(struct s_rend *rend, const GLfloat *p, GLfloat r, GLfloat h, GLfloat t)
 {
-    static GLfloat c[4][4] = {
-        { 0.75f, 0.5f, 1.0f, 0.5f },
-        { 0.75f, 0.5f, 1.0f, 0.8f },
-    };
+    GLfloat height = (hmd_stat() ? 0.3f : 1.0f) * video.device_h;
+
+    glPointSize(height / 6);
 
     glPushMatrix();
     {
-        glColor4f(c[h][0], c[h][1], c[h][2], c[h][3]);
-
-        glScalef(1.0f, 2.0f, 1.0f);
-
-        sol_draw(&beam.draw, rend, 1, 1);
-
-        jump_part_draw(rend, t * 0.15f, t * 360.0f);
-        jump_part_draw(rend, t * 0.20f, t * 360.0f);
-        jump_part_draw(rend, t * 0.25f, t * 360.0f);
-
-        glMatrixMode(GL_TEXTURE);
-        glLoadIdentity();
-        glMatrixMode(GL_MODELVIEW);
-
-        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+        glTranslatef(p[0], p[1], p[2]);
+        glScalef(r, h, r);
+        sol_draw(&goal.draw, rend, 1, 1);
     }
     glPopMatrix();
 }
 
-void swch_draw(struct s_rend *rend, int b, int e)
+void jump_draw(struct s_rend *rend, const GLfloat *p, GLfloat r, GLfloat h)
 {
-    static GLfloat c[4][4] = {
-        { 1.0f, 0.0f, 0.0f, 0.5f }, /* red out */
-        { 1.0f, 0.0f, 0.0f, 0.8f }, /* red in */
-        { 0.0f, 1.0f, 0.0f, 0.5f }, /* green out */
-        { 0.0f, 1.0f, 0.0f, 0.8f }, /* green in */
-    };
+    GLfloat height = (hmd_stat() ? 0.3f : 1.0f) * video.device_h;
 
-    const int h = 2 * b + e;
+    glPointSize(height / 12);
 
     glPushMatrix();
     {
-        glScalef(1.0f, 2.0f, 1.0f);
-
-        glColor4f(c[h][0], c[h][1], c[h][2], c[h][3]);
-        sol_draw(&beam.draw, rend, 1, 1);
-        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+        glTranslatef(p[0], p[1], p[2]);
+        glScalef(r, h, r);
+        sol_draw(&jump.draw, rend, 1, 1);
     }
     glPopMatrix();
 }
 
-void flag_draw(struct s_rend *rend)
+void flag_draw(struct s_rend *rend, const GLfloat *p)
 {
-    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-    sol_draw(&flag.draw, rend, 1, 1);
+    glPushMatrix();
+    {
+        glTranslatef(p[0], p[1], p[2]);
+        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+        sol_draw(&flag.draw, rend, 1, 1);
+    }
+    glPopMatrix();
 }
 
 void mark_draw(struct s_rend *rend)
@@ -459,7 +531,6 @@ void back_draw(struct s_rend *rend)
 {
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
-    glDisable(GL_LIGHTING);
     glDepthMask(GL_FALSE);
 
     glPushMatrix();
@@ -470,7 +541,6 @@ void back_draw(struct s_rend *rend)
     glPopMatrix();
 
     glDepthMask(GL_TRUE);
-    glEnable(GL_LIGHTING);
     glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
 }
@@ -479,9 +549,9 @@ void back_draw_easy(void)
 {
     struct s_rend rend;
 
-    sol_draw_enable(&rend);
+    r_draw_enable(&rend);
     back_draw(&rend);
-    sol_draw_disable(&rend);
+    r_draw_disable(&rend);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -575,6 +645,128 @@ void shad_draw_clr(void)
         }
 
         tex_env_stage(TEX_STAGE_TEXTURE);
+    }
+}
+
+/*---------------------------------------------------------------------------*/
+
+/*
+ * Configurable lights.
+ */
+
+#define LIGHT_MAX 3
+
+struct light
+{
+    GLfloat p[4];
+    GLfloat d[4];
+    GLfloat a[4];
+    GLfloat s[4];
+};
+
+static const GLfloat default_ambient[4] = { 0.2f, 0.2f, 0.2f, 1.0f };
+
+static const struct light default_lights[LIGHT_MAX] = {
+    {
+        { -8.0f, +32.0f, -8.0f, 0.0f },
+
+        { 1.0f, 0.8f, 0.8f, 1.0f },
+        { 0.7f, 0.7f, 0.7f, 1.0f },
+        { 1.0f, 0.8f, 0.8f, 1.0f }
+    },
+    {
+        { +8.0f, +32.0f, +8.0f, 0.0f },
+
+        { 0.8f, 1.0f, 0.8f, 1.0f },
+        { 0.7f, 0.7f, 0.7f, 1.0f },
+        { 0.8f, 1.0f, 0.8f, 1.0f },
+    },
+    {
+        { 0.0f, 0.0f, 1.0f, 0.0f },
+
+        { 1.0f, 1.0f, 1.0f, 1.0f },
+        { 0.0f, 0.0f, 0.0f, 1.0f },
+        { 1.0f, 1.0f, 1.0f, 1.0f },
+    }
+};
+
+static GLfloat      light_ambient[4];
+static struct light lights[LIGHT_MAX];
+
+void light_reset(void)
+{
+    memcpy(lights,        default_lights,  sizeof (lights));
+    memcpy(light_ambient, default_ambient, sizeof (light_ambient));
+}
+
+void light_conf(void)
+{
+    int i;
+
+    glLightModelfv(GL_LIGHT_MODEL_AMBIENT, light_ambient);
+
+    for (i = 0; i < ARRAYSIZE(lights); i++)
+    {
+        GLenum light = GL_LIGHT0 + i;
+
+        glLightfv(light, GL_POSITION, lights[i].p);
+        glLightfv(light, GL_DIFFUSE,  lights[i].d);
+        glLightfv(light, GL_AMBIENT,  lights[i].a);
+        glLightfv(light, GL_SPECULAR, lights[i].s);
+    }
+}
+
+void light_load(void)
+{
+    static char buf[MAXSTR];
+
+    int light = -1;
+
+    fs_file fp;
+    float v[4];
+    int i;
+
+    light_reset();
+
+    if ((fp = fs_open_read("lights.txt")))
+    {
+        while (fs_gets(buf, sizeof (buf), fp))
+        {
+            strip_newline(buf);
+
+            if      (sscanf(buf, "light %d", &i) == 1)
+            {
+                if (i >= 0 && i < LIGHT_MAX)
+                    light = i;
+            }
+            else if (sscanf(buf, "position %f %f %f %f",
+                            &v[0], &v[1], &v[2], &v[3]) == 4)
+            {
+                if (light >= 0)
+                    q_cpy(lights[light].p, v);
+            }
+            else if (sscanf(buf, "diffuse %f %f %f %f",
+                            &v[0], &v[1], &v[2], &v[3]) == 4)
+            {
+                if (light >= 0)
+                    q_cpy(lights[light].d, v);
+            }
+            else if (sscanf(buf, "ambient %f %f %f %f",
+                            &v[0], &v[1], &v[2], &v[3]) == 4)
+            {
+                if (light >= 0)
+                    q_cpy(lights[light].a, v);
+                else
+                    q_cpy(light_ambient, v);
+            }
+            else if (sscanf(buf, "specular %f %f %f %f",
+                            &v[0], &v[1], &v[2], &v[3]) == 4)
+            {
+                if (light >= 0)
+                    q_cpy(lights[light].s, v);
+            }
+        }
+        fs_close(fp);
     }
 }
 

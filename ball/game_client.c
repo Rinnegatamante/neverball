@@ -19,7 +19,6 @@
 #include "glext.h"
 #include "vec3.h"
 #include "geom.h"
-#include "item.h"
 #include "part.h"
 #include "ball.h"
 #include "image.h"
@@ -432,6 +431,10 @@ int  game_client_init(const char *file_name)
 
     back_init(grad_name);
     sol_load_full(&gd.back, back_name, 0);
+
+    /* Initialize lighting. */
+
+    light_reset();
 
     return gd.state;
 }

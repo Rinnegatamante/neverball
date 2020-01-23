@@ -137,13 +137,13 @@ static int title_action(int tok, int val)
         if (strcmp(queue, keyphrase) == 0)
         {
             config_set_cheat();
-            gui_set_label(play_id, sgettext("menu^Cheat"));
+            gui_set_label(play_id, gt_prefix("menu^Cheat"));
             gui_pulse(play_id, 1.2f);
         }
         else if (config_cheat())
         {
             config_clr_cheat();
-            gui_set_label(play_id, sgettext("menu^Play"));
+            gui_set_label(play_id, gt_prefix("menu^Play"));
             gui_pulse(play_id, 1.2f);
         }
 
@@ -172,16 +172,16 @@ static int title_gui(void)
             if ((kd = gui_varray(jd)))
             {
                 if (config_cheat())
-                    play_id = gui_start(kd, sgettext("menu^Cheat"),
+                    play_id = gui_start(kd, gt_prefix("menu^Cheat"),
                                         GUI_MED, TITLE_PLAY, 0);
                 else
-                    play_id = gui_start(kd, sgettext("menu^Play"),
+                    play_id = gui_start(kd, gt_prefix("menu^Play"),
                                         GUI_MED, TITLE_PLAY, 0);
 
-                gui_state(kd, sgettext("menu^Replay"),  GUI_MED, TITLE_DEMO, 0);
-                gui_state(kd, sgettext("menu^Help"),    GUI_MED, TITLE_HELP, 0);
-                gui_state(kd, sgettext("menu^Options"), GUI_MED, TITLE_CONF, 0);
-                gui_state(kd, sgettext("menu^Exit"),    GUI_MED, GUI_BACK, 0);
+                gui_state(kd, gt_prefix("menu^Replay"),  GUI_MED, TITLE_DEMO, 0);
+                gui_state(kd, gt_prefix("menu^Help"),    GUI_MED, TITLE_HELP, 0);
+                gui_state(kd, gt_prefix("menu^Options"), GUI_MED, TITLE_CONF, 0);
+                gui_state(kd, gt_prefix("menu^Exit"),    GUI_MED, GUI_BACK, 0);
 
                 /* Hilight the start button. */
 
@@ -196,8 +196,15 @@ static int title_gui(void)
     return id;
 }
 
+static int filter_cmd(const union cmd *cmd)
+{
+    return (cmd ? cmd->type != CMD_SOUND : 1);
+}
+
 static int title_enter(struct state *st, struct state *prev)
 {
+    game_proxy_filter(filter_cmd);
+
     /* Start the title screen music. */
 
     audio_music_fade_to(0.5f, "bgm/title.ogg");
@@ -223,6 +230,7 @@ static void title_leave(struct state *st, struct state *next, int id)
     }
 
     demo_replay_stop(0);
+    game_proxy_filter(NULL);
     gui_delete(id);
 }
 
@@ -307,7 +315,7 @@ static int title_keybd(int c, int d)
     {
         if (c == KEY_EXIT)
             return title_action(GUI_BACK, 0);
-        if (c >= ' ')
+        if (c >= SDLK_a && c <= SDLK_z)
             return title_action(GUI_CHAR, c);
     }
     return 1;

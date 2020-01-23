@@ -212,17 +212,6 @@ static int write_lines(const char *start, int length, fs_file fh)
 
 /*---------------------------------------------------------------------------*/
 
-/*
- * Trying to avoid defining a feature test macro for every platform by
- * declaring vsnprintf with the C99 signature.  This is probably bad.
- */
-
-#include <stdio.h>
-#include <stdarg.h>
-#ifndef __APPLE__
-extern int vsnprintf(char *, size_t, const char *, va_list);
-#endif
-
 int fs_printf(fs_file fh, const char *fmt, ...)
 {
     char *buff;
@@ -231,7 +220,7 @@ int fs_printf(fs_file fh, const char *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
-    len = vsnprintf(NULL, 0, fmt, ap) + 1;
+    len = 1 + vsnprintf(NULL, 0, fmt, ap);
     va_end(ap);
 
     if ((buff = malloc(len)))
@@ -266,9 +255,8 @@ void *fs_load(const char *path, int *datalen)
 
     data = NULL;
 
-    if ((fh = fs_open(path, "r")))
-    {
-        if ((*datalen = fs_length(fh)) > 0)
+    if ((*datalen = fs_size(path)) > 0)
+        if ((fh = fs_open_read(path)))
         {
             if ((data = malloc(*datalen)))
             {
@@ -279,31 +267,49 @@ void *fs_load(const char *path, int *datalen)
                     *datalen = 0;
                 }
             }
-        }
 
-        fs_close(fh);
-    }
+            fs_close(fh);
+        }
 
     return data;
 }
 
 /*---------------------------------------------------------------------------*/
 
-const char *fs_resolve(const char *path)
+/*
+ * Convert a system path into a VFS path.
+ */
+const char *fs_resolve(const char *system)
 {
+    static char path[MAXSTR];
+
+    const char *p;
+
+    /*
+     * PhysicsFS will claim a file doesn't exist if its path uses a
+     * directory separator other than a forward slash, even if that
+     * separator is valid for the system. We'll oblige.
+     */
+
+    SAFECPY(path, system);
+
+    path_normalize(path);
+
     if (fs_exists(path))
         return path;
 
     /* Chop off directories until we have a match. */
 
-    while ((path = path_next_sep(path)))
+    p = path;
+
+    while ((p = path_next_sep(p)))
     {
         /* Skip separator. */
 
-        path += 1;
+        p += 1;
 
-        if (fs_exists(path))
-            return path;
+        if (fs_exists(p))
+            return p;
     }
 
     return NULL;

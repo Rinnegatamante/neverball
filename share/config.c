@@ -13,6 +13,7 @@
  */
 
 #include <SDL.h>
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -45,6 +46,7 @@ int CONFIG_MOUSE_RESPONSE;
 int CONFIG_MOUSE_INVERT;
 int CONFIG_VSYNC;
 int CONFIG_HMD;
+int CONFIG_HIGHDPI;
 int CONFIG_MOUSE_CAMERA_1;
 int CONFIG_MOUSE_CAMERA_2;
 int CONFIG_MOUSE_CAMERA_3;
@@ -56,14 +58,15 @@ int CONFIG_FPS;
 int CONFIG_SOUND_VOLUME;
 int CONFIG_MUSIC_VOLUME;
 int CONFIG_JOYSTICK;
-int CONFIG_JOYSTICK_DEVICE;
 int CONFIG_JOYSTICK_RESPONSE;
-int CONFIG_JOYSTICK_AXIS_X;
-int CONFIG_JOYSTICK_AXIS_Y;
-int CONFIG_JOYSTICK_AXIS_U;
-int CONFIG_JOYSTICK_AXIS_X_INVERT;
-int CONFIG_JOYSTICK_AXIS_Y_INVERT;
-int CONFIG_JOYSTICK_AXIS_U_INVERT;
+int CONFIG_JOYSTICK_AXIS_X0;
+int CONFIG_JOYSTICK_AXIS_Y0;
+int CONFIG_JOYSTICK_AXIS_X1;
+int CONFIG_JOYSTICK_AXIS_Y1;
+int CONFIG_JOYSTICK_AXIS_X0_INVERT;
+int CONFIG_JOYSTICK_AXIS_Y0_INVERT;
+int CONFIG_JOYSTICK_AXIS_X1_INVERT;
+int CONFIG_JOYSTICK_AXIS_Y1_INVERT;
 
 int CONFIG_JOYSTICK_BUTTON_A;
 int CONFIG_JOYSTICK_BUTTON_B;
@@ -73,6 +76,7 @@ int CONFIG_JOYSTICK_BUTTON_L1;
 int CONFIG_JOYSTICK_BUTTON_R1;
 int CONFIG_JOYSTICK_BUTTON_L2;
 int CONFIG_JOYSTICK_BUTTON_R2;
+int CONFIG_JOYSTICK_BUTTON_SELECT;
 int CONFIG_JOYSTICK_BUTTON_START;
 int CONFIG_JOYSTICK_DPAD_L;
 int CONFIG_JOYSTICK_DPAD_R;
@@ -113,6 +117,8 @@ int CONFIG_PLAYER;
 int CONFIG_BALL_FILE;
 int CONFIG_WIIMOTE_ADDR;
 int CONFIG_REPLAY_NAME;
+int CONFIG_LANGUAGE;
+int CONFIG_THEME;
 
 /*---------------------------------------------------------------------------*/
 
@@ -133,7 +139,7 @@ static struct
     { &CONFIG_REFLECTION,   "reflection",   1 },
     { &CONFIG_MULTISAMPLE,  "multisample",  0 },
     { &CONFIG_MIPMAP,       "mipmap",       1 },
-    { &CONFIG_ANISO,        "aniso",        0 },
+    { &CONFIG_ANISO,        "aniso",        8 },
     { &CONFIG_BACKGROUND,   "background",   1 },
     { &CONFIG_SHADOW,       "shadow",       1 },
     { &CONFIG_AUDIO_BUFF,   "audio_buff",   AUDIO_BUFF_HI },
@@ -142,6 +148,7 @@ static struct
     { &CONFIG_MOUSE_INVERT, "mouse_invert", 0 },
     { &CONFIG_VSYNC,        "vsync",        1 },
     { &CONFIG_HMD,          "hmd",          0 },
+    { &CONFIG_HIGHDPI,      "highdpi",      1 },
 
     { &CONFIG_MOUSE_CAMERA_1,      "mouse_camera_1",      0 },
     { &CONFIG_MOUSE_CAMERA_2,      "mouse_camera_2",      0 },
@@ -155,15 +162,16 @@ static struct
     { &CONFIG_SOUND_VOLUME, "sound_volume", 10 },
     { &CONFIG_MUSIC_VOLUME, "music_volume", 6 },
 
-    { &CONFIG_JOYSTICK,               "joystick",               1 },
-    { &CONFIG_JOYSTICK_DEVICE,        "joystick_device",        0 },
-    { &CONFIG_JOYSTICK_RESPONSE,      "joystick_response",      250 },
-    { &CONFIG_JOYSTICK_AXIS_X,        "joystick_axis_x",        0 },
-    { &CONFIG_JOYSTICK_AXIS_Y,        "joystick_axis_y",        1 },
-    { &CONFIG_JOYSTICK_AXIS_U,        "joystick_axis_u",        2 },
-    { &CONFIG_JOYSTICK_AXIS_X_INVERT, "joystick_axis_x_invert", 0 },
-    { &CONFIG_JOYSTICK_AXIS_Y_INVERT, "joystick_axis_y_invert", 0 },
-    { &CONFIG_JOYSTICK_AXIS_U_INVERT, "joystick_axis_u_invert", 0 },
+    { &CONFIG_JOYSTICK,                "joystick",                1 },
+    { &CONFIG_JOYSTICK_RESPONSE,       "joystick_response",       250 },
+    { &CONFIG_JOYSTICK_AXIS_X0,        "joystick_axis_x0",        0 },
+    { &CONFIG_JOYSTICK_AXIS_Y0,        "joystick_axis_y0",        1 },
+    { &CONFIG_JOYSTICK_AXIS_X1,        "joystick_axis_x1",        3 },
+    { &CONFIG_JOYSTICK_AXIS_Y1,        "joystick_axis_y1",        4 },
+    { &CONFIG_JOYSTICK_AXIS_X0_INVERT, "joystick_axis_x0_invert", 0 },
+    { &CONFIG_JOYSTICK_AXIS_Y0_INVERT, "joystick_axis_y0_invert", 0 },
+    { &CONFIG_JOYSTICK_AXIS_X1_INVERT, "joystick_axis_x1_invert", 0 },
+    { &CONFIG_JOYSTICK_AXIS_Y1_INVERT, "joystick_axis_y1_invert", 0 },
 
     { &CONFIG_JOYSTICK_BUTTON_A,      "joystick_button_a",      0 },
     { &CONFIG_JOYSTICK_BUTTON_B,      "joystick_button_b",      1 },
@@ -171,9 +179,10 @@ static struct
     { &CONFIG_JOYSTICK_BUTTON_Y,      "joystick_button_y",      3 },
     { &CONFIG_JOYSTICK_BUTTON_L1,     "joystick_button_l1",     4 },
     { &CONFIG_JOYSTICK_BUTTON_R1,     "joystick_button_r1",     5 },
-    { &CONFIG_JOYSTICK_BUTTON_L2,     "joystick_button_l2",     6 },
-    { &CONFIG_JOYSTICK_BUTTON_R2,     "joystick_button_r2",     7 },
-    { &CONFIG_JOYSTICK_BUTTON_START,  "joystick_button_start",  8 },
+    { &CONFIG_JOYSTICK_BUTTON_L2,     "joystick_button_l2",     -1 },
+    { &CONFIG_JOYSTICK_BUTTON_R2,     "joystick_button_r2",     -1 },
+    { &CONFIG_JOYSTICK_BUTTON_SELECT, "joystick_button_select", 6 },
+    { &CONFIG_JOYSTICK_BUTTON_START,  "joystick_button_start",  7 },
     { &CONFIG_JOYSTICK_DPAD_L,        "joystick_dpad_l",       -1 },
     { &CONFIG_JOYSTICK_DPAD_R,        "joystick_dpad_r",       -1 },
     { &CONFIG_JOYSTICK_DPAD_U,        "joystick_dpad_u",       -1 },
@@ -202,7 +211,7 @@ static struct
     { &CONFIG_CHEAT,       "cheat",       0 },
     { &CONFIG_STATS,       "stats",       0 },
     { &CONFIG_SCREENSHOT,  "screenshot",  0 },
-    { &CONFIG_LOCK_GOALS,  "lock_goals",  0 },
+    { &CONFIG_LOCK_GOALS,  "lock_goals",  1 },
 
     { &CONFIG_CAMERA_1_SPEED, "camera_1_speed", 250 },
     { &CONFIG_CAMERA_2_SPEED, "camera_2_speed", 0 },
@@ -219,7 +228,9 @@ static struct
     { &CONFIG_PLAYER,       "player",       "" },
     { &CONFIG_BALL_FILE,    "ball_file",    "ball/basic-ball/basic-ball" },
     { &CONFIG_WIIMOTE_ADDR, "wiimote_addr", "" },
-    { &CONFIG_REPLAY_NAME,  "replay_name",  "%s-%l" }
+    { &CONFIG_REPLAY_NAME,  "replay_name",  "%s-%l" },
+    { &CONFIG_LANGUAGE,     "language",     "" },
+    { &CONFIG_THEME,        "theme",        "classic" }
 };
 
 static int dirty = 0;
@@ -331,7 +342,9 @@ void config_load(void)
 {
     fs_file fh;
 
-    if ((fh = fs_open(USER_CONFIG_FILE, "r")))
+    SDL_assert(SDL_WasInit(SDL_INIT_VIDEO));
+
+    if ((fh = fs_open_read(USER_CONFIG_FILE)))
     {
         char *line, *key, *val;
 
@@ -434,7 +447,9 @@ void config_save(void)
 {
     fs_file fh;
 
-    if (dirty && (fh = fs_open(USER_CONFIG_FILE, "w")))
+    SDL_assert(SDL_WasInit(SDL_INIT_VIDEO));
+
+    if (dirty && (fh = fs_open_write(USER_CONFIG_FILE)))
     {
         int i;
 
@@ -486,10 +501,7 @@ void config_save(void)
         /* Write out string options. */
 
         for (i = 0; i < ARRAYSIZE(option_s); i++)
-        {
-            if (option_s[i].cur && *option_s[i].cur)
-                fs_printf(fh, "%-25s %s\n", option_s[i].name, option_s[i].cur);
-        }
+            fs_printf(fh, "%-25s %s\n", option_s[i].name, option_s[i].cur);
 
         fs_close(fh);
     }

@@ -17,14 +17,13 @@
 #include <assert.h>
 
 #include "vec3.h"
-#include "item.h"
+#include "geom.h"
 #include "config.h"
 #include "binary.h"
 #include "common.h"
 
 #include "solid_sim.h"
 #include "solid_all.h"
-#include "solid_cmd.h"
 
 #include "game_common.h"
 #include "game_server.h"
@@ -338,11 +337,11 @@ static int   got_orig = 0;              /* Do we know original ball size?    */
 
 static int   grow_state = 0;            /* Current state (values -1, 0, +1)  */
 
-static void grow_init(const struct s_vary *vary, int type)
+static void grow_init(int type)
 {
     if (!got_orig)
     {
-        grow_orig  = vary->uv->r;
+        grow_orig  = vary.uv->r;
         grow_goal  = grow_orig;
         grow_strt  = grow_orig;
 
@@ -399,11 +398,11 @@ static void grow_init(const struct s_vary *vary, int type)
     if (grow)
     {
         grow_t = 0.0;
-        grow_strt = vary->uv->r;
+        grow_strt = vary.uv->r;
     }
 }
 
-static void grow_step(const struct s_vary *vary, float dt)
+static void grow_step(float dt)
 {
     float dr;
 
@@ -424,8 +423,8 @@ static void grow_step(const struct s_vary *vary, float dt)
 
     /* No sinking through the floor! Keeps ball's bottom constant. */
 
-    vary->uv->p[1] += (dr - vary->uv->r);
-    vary->uv->r     =  dr;
+    vary.uv->p[1] += (dr - vary.uv->r);
+    vary.uv->r     =  dr;
 
     game_cmd_ballradius();
 }
@@ -501,7 +500,6 @@ int game_server_init(const char *file_name, int t, int e)
     /* Initialize simulation. */
 
     sol_init_sim(&vary);
-    sol_cmd_enq_func(game_proxy_enq);
 
     /* Send initial update. */
 
@@ -640,7 +638,7 @@ static void game_update_view(float dt)
 
     view_k = view_k + (k - view_k) * dt;
 
-    if (view_k < 0.5) view_k = 0.5;
+    if (view_k < 0.5f) view_k = 0.5;
 
     v_scl(v,    view.e[1], view.dp * view_k);
     v_mad(v, v, view.e[2], view.dz * view_k);
@@ -692,7 +690,7 @@ static int game_update_state(int bt)
 
         game_cmd_pkitem(hi);
 
-        grow_init(&vary, hp->t);
+        grow_init(hp->t);
 
         if (hp->t == ITEM_COIN)
         {
@@ -709,7 +707,7 @@ static int game_update_state(int bt)
 
     /* Test for a switch. */
 
-    if (sol_swch_test(&vary, 0) == SWCH_INSIDE)
+    if (sol_swch_test(&vary, game_proxy_enq, 0) == SWCH_INSIDE)
         audio_play(AUD_SWITCH, 1.f);
 
     /* Test for a jump. */
@@ -767,15 +765,15 @@ static int game_step(const float g[3], float dt, int bt)
 
         /* Smooth jittery or discontinuous input. */
 
-        tilt.rx += (input_get_x() - tilt.rx) * dt / input_get_s();
-        tilt.rz += (input_get_z() - tilt.rz) * dt / input_get_s();
+        tilt.rx += (input_get_x() - tilt.rx) * dt / MAX(dt, input_get_s());
+        tilt.rz += (input_get_z() - tilt.rz) * dt / MAX(dt, input_get_s());
 
         game_tilt_axes(&tilt, view.e);
 
         game_cmd_tiltaxes();
         game_cmd_tiltangles();
 
-        grow_step(&vary, dt);
+        grow_step(dt);
 
         game_tilt_grav(h, g, &tilt);
 
@@ -811,7 +809,7 @@ static int game_step(const float g[3], float dt, int bt)
         {
             /* Run the sim. */
 
-            float b = sol_step(&vary, h, dt, 0, NULL);
+            float b = sol_step(&vary, game_proxy_enq, h, dt, 0, NULL);
 
             /* Mix the sound of a ball bounce. */
 

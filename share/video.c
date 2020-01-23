@@ -26,12 +26,14 @@
 extern const char TITLE[];
 extern const char ICON[];
 
+struct video video;
+
 /*---------------------------------------------------------------------------*/
 
 /* Normally...... show the system cursor and hide the virtual cursor.        */
 /* In HMD mode... show the virtual cursor and hide the system cursor.        */
 
-static void video_show_cursor()
+void video_show_cursor()
 {
     if (hmd_stat())
     {
@@ -48,7 +50,7 @@ static void video_show_cursor()
 /* When the cursor is to be hidden, make sure neither the virtual cursor     */
 /* nor the system cursor is visible.                                         */
 
-static void video_hide_cursor()
+void video_hide_cursor()
 {
     gui_set_cursor(0);
     SDL_ShowCursor(SDL_DISABLE);
@@ -122,7 +124,7 @@ int video_init(void)
                     config_get_d(CONFIG_WIDTH),
                     config_get_d(CONFIG_HEIGHT)))
     {
-        fprintf(stderr, "Failure to create window (%s)\n", SDL_GetError());
+        log_printf("Failure to create window (%s)\n", SDL_GetError());
         return 0;
     }
 
@@ -137,6 +139,7 @@ int video_mode(int f, int w, int h)
     int samples = config_get_d(CONFIG_MULTISAMPLE);
     int vsync   = config_get_d(CONFIG_VSYNC)       ? 1 : 0;
     int hmd     = config_get_d(CONFIG_HMD)         ? 1 : 0;
+    int highdpi = config_get_d(CONFIG_HIGHDPI)     ? 1 : 0;
 
     int dpy = config_get_d(CONFIG_DISPLAY);
 
@@ -150,6 +153,12 @@ int video_mode(int f, int w, int h)
         SDL_GL_DeleteContext(context);
         SDL_DestroyWindow(window);
     }
+
+#if ENABLE_OPENGLES
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 1);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+#endif
 
     SDL_GL_SetAttribute(SDL_GL_STEREO,             stereo);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE,       stencil);
@@ -166,37 +175,102 @@ int video_mode(int f, int w, int h)
 
     /* Try to set the currently specified mode. */
 
+    log_printf("Creating a window (%dx%d, %s)\n",
+               w, h, (f ? "fullscreen" : "windowed"));
+
     window = SDL_CreateWindow("", X, Y, w, h,
                               SDL_WINDOW_OPENGL |
+                              (highdpi ? SDL_WINDOW_ALLOW_HIGHDPI : 0) |
                               (f ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0));
 
     if (window)
     {
+        if ((context = SDL_GL_CreateContext(window)))
+        {
+            int buf, smp;
+
+            SDL_GL_GetAttribute(SDL_GL_MULTISAMPLEBUFFERS, &buf);
+            SDL_GL_GetAttribute(SDL_GL_MULTISAMPLESAMPLES, &smp);
+
+            /*
+             * Work around SDL+WGL returning pixel formats below
+             * minimum specifications instead of failing, thus
+             * bypassing our fallback path. SDL tries to ensure that
+             * WGL plays by the rules, but forgets about extended
+             * context attributes such as multisample. See SDL
+             * Bugzilla #77.
+             */
+
+            if (buf < buffers || smp < samples)
+            {
+                log_printf("GL context does not meet minimum specifications\n");
+                SDL_GL_DeleteContext(context);
+                context = NULL;
+            }
+        }
+    }
+
+    if (window && context)
+    {
         set_window_title(TITLE);
         set_window_icon(ICON);
 
-        SDL_GetWindowSize(window, &w, &h);
+        /*
+         * SDL_GetWindowSize can be unreliable when going fullscreen
+         * on OSX (and possibly elsewhere). We should really be
+         * waiting for a resize / size change event, but for now we're
+         * doing this lazy thing instead.
+         */
+
+        if (f)
+        {
+            SDL_DisplayMode dm;
+
+            if (SDL_GetDesktopDisplayMode(video_display(), &dm) == 0)
+            {
+                video.window_w = dm.w;
+                video.window_h = dm.h;
+            }
+        }
+        else
+        {
+            SDL_GetWindowSize(window, &video.window_w, &video.window_h);
+        }
+
+        if (highdpi)
+        {
+            SDL_GL_GetDrawableSize(window, &video.device_w, &video.device_h);
+        }
+        else
+        {
+            video.device_w = video.window_w;
+            video.device_h = video.window_h;
+        }
+
+        video.device_scale = (float) video.device_h / (float) video.window_h;
+
+        log_printf("Created a window (%u, %dx%d, %s)\n",
+                   SDL_GetWindowID(window),
+                   video.window_w, video.window_h,
+                   (f ? "fullscreen" : "windowed"));
 
         config_set_d(CONFIG_DISPLAY,    video_display());
         config_set_d(CONFIG_FULLSCREEN, f);
-        config_set_d(CONFIG_WIDTH,      w);
-        config_set_d(CONFIG_HEIGHT,     h);
-
-        context = SDL_GL_CreateContext(window);
+        config_set_d(CONFIG_WIDTH,      video.window_w);
+        config_set_d(CONFIG_HEIGHT,     video.window_h);
 
         SDL_GL_SetSwapInterval(vsync);
 
         if (!glext_init())
             return 0;
 
-        glViewport(0, 0, w, h);
+        glViewport(0, 0, video.device_w, video.device_h);
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
         glEnable(GL_NORMALIZE);
         glEnable(GL_CULL_FACE);
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_TEXTURE_2D);
-        glEnable(GL_LIGHTING);
         glEnable(GL_BLEND);
 
 #if !ENABLE_OPENGLES
@@ -323,7 +397,7 @@ void video_swap(void)
         /* Output statistics if configured. */
 
         if (config_get_d(CONFIG_STATS))
-            fprintf(stdout, "%4d %8.4f\n", fps, ms);
+            fprintf(stdout, "%4d %8.4f\n", fps, (double) ms);
     }
 }
 
@@ -339,8 +413,8 @@ void video_set_grab(int w)
         SDL_EventState(SDL_MOUSEMOTION, SDL_IGNORE);
 
         SDL_WarpMouseInWindow(window,
-                              config_get_d(CONFIG_WIDTH)  / 2,
-                              config_get_d(CONFIG_HEIGHT) / 2);
+                              video.window_w / 2,
+                              video.window_h / 2);
 
         SDL_EventState(SDL_MOUSEMOTION, SDL_ENABLE);
     }
@@ -403,11 +477,11 @@ void video_push_persp(float fov, float n, float f)
         GLfloat m[4][4];
 
         GLfloat r = fov / 2 * V_PI / 180;
-        GLfloat s = sin(r);
-        GLfloat c = cos(r) / s;
+        GLfloat s = fsinf(r);
+        GLfloat c = fcosf(r) / s;
 
-        GLfloat a = ((GLfloat) config_get_d(CONFIG_WIDTH) /
-                     (GLfloat) config_get_d(CONFIG_HEIGHT));
+        GLfloat a = ((GLfloat) video.device_w /
+                     (GLfloat) video.device_h);
 
         glMatrixMode(GL_PROJECTION);
         {
@@ -445,8 +519,8 @@ void video_push_ortho(void)
         hmd_ortho();
     else
     {
-        GLfloat w = (GLfloat) config_get_d(CONFIG_WIDTH);
-        GLfloat h = (GLfloat) config_get_d(CONFIG_HEIGHT);
+        GLfloat w = (GLfloat) video.device_w;
+        GLfloat h = (GLfloat) video.device_h;
 
         glMatrixMode(GL_PROJECTION);
         {

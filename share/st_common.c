@@ -24,20 +24,6 @@
 
 #include "st_common.h"
 
-/*
- * It's probably best if these values match those in ball/util.h.
- */
-enum
-{
-    GUI_NONE = 0,
-    GUI_BACK = 1,
-    GUI_LAST
-};
-
-/*
- * And ball/game_common.h.
- */
-
 #define AUD_MENU "snd/menu.ogg"
 
 /*---------------------------------------------------------------------------*/
@@ -375,7 +361,7 @@ static int video_gui(void)
                 gui_set_color(jd, gui_gry, gui_gry);
             }
         }
-#ifdef ENABLE_HMD
+#if ENABLE_HMD
         conf_toggle(id, _("HMD"),          VIDEO_HMD,
                     config_get_d(CONFIG_HMD),        _("On"), 1, _("Off"), 0);
 #endif
@@ -597,6 +583,148 @@ static int resol_enter(struct state *st, struct state *prev)
 
 /*---------------------------------------------------------------------------*/
 
+#define LANG_STEP 10
+
+static Array langs;
+static int   first;
+
+enum
+{
+    LANG_DEFAULT = GUI_LAST,
+    LANG_SELECT
+};
+
+static struct state *lang_back;
+
+static int lang_action(int tok, int val)
+{
+    int r = 1;
+
+    struct lang_desc *desc;
+
+    audio_play(AUD_MENU, 1.0f);
+
+    switch (tok)
+    {
+    case GUI_BACK:
+        goto_state(lang_back);
+        lang_back = NULL;
+        break;
+
+    case GUI_PREV:
+        first -= LANG_STEP;
+        goto_state(&st_lang);
+        break;
+
+    case GUI_NEXT:
+        first += LANG_STEP;
+        goto_state(&st_lang);
+        break;
+
+    case LANG_DEFAULT:
+        /* HACK: Reload resources to load the localized font. */
+        goto_state(&st_null);
+        config_set_s(CONFIG_LANGUAGE, "");
+        lang_init();
+        goto_state(&st_lang);
+        break;
+
+    case LANG_SELECT:
+        desc = LANG_GET(langs, val);
+        goto_state(&st_null);
+        config_set_s(CONFIG_LANGUAGE, desc->code);
+        lang_init();
+        goto_state(&st_lang);
+        break;
+    }
+
+    return r;
+}
+
+static int lang_gui(void)
+{
+    const int step = (first == 0 ? LANG_STEP - 1 : LANG_STEP);
+
+    int id, jd;
+    int i;
+
+    if ((id = gui_vstack(0)))
+    {
+        if ((jd = gui_hstack(id)))
+        {
+            gui_label(jd, _("Language"), GUI_SML, 0, 0);
+            gui_space(jd);
+            gui_space(jd);
+            gui_navig(jd, array_len(langs), first, LANG_STEP);
+        }
+
+        gui_space(id);
+
+        if (step < LANG_STEP)
+        {
+            int default_id;
+            default_id = gui_state(id, _("Default"), GUI_SML, LANG_DEFAULT, 0);
+            gui_set_hilite(default_id, !*config_get_s(CONFIG_LANGUAGE));
+        }
+
+        for (i = first; i < first + step; i++)
+        {
+            if (i < array_len(langs))
+            {
+                struct lang_desc *desc = LANG_GET(langs, i);
+
+                int lang_id;
+
+                lang_id = gui_state(id, " ", GUI_SML, LANG_SELECT, i);
+
+                gui_set_hilite(lang_id, (strcmp(config_get_s(CONFIG_LANGUAGE),
+                                                desc->code) == 0));
+
+                /* Set font and rebuild texture. */
+
+                gui_set_font(lang_id, desc->font);
+                gui_set_label(lang_id, lang_name(desc));
+            }
+            else
+            {
+                gui_label(id, " ", GUI_SML, 0, 0);
+            }
+        }
+
+        gui_layout(id, 0, 0);
+    }
+
+    return id;
+}
+
+static int lang_enter(struct state *st, struct state *prev)
+{
+    if (!langs)
+    {
+        langs = lang_dir_scan();
+        first = 0;
+    }
+
+    if (!lang_back)
+        lang_back = prev;
+
+    conf_common_init(lang_action);
+    return lang_gui();
+}
+
+void lang_leave(struct state *st, struct state *next, int id)
+{
+    if (!(next == &st_lang || next == &st_null))
+    {
+        lang_dir_free(langs);
+        langs = NULL;
+    }
+
+    conf_common_leave(st, next, id);
+}
+
+/*---------------------------------------------------------------------------*/
+
 struct state st_video = {
     video_enter,
     conf_common_leave,
@@ -626,6 +754,19 @@ struct state st_display = {
 struct state st_resol = {
     resol_enter,
     conf_common_leave,
+    conf_common_paint,
+    common_timer,
+    common_point,
+    common_stick,
+    NULL,
+    common_click,
+    common_keybd,
+    common_buttn
+};
+
+struct state st_lang = {
+    lang_enter,
+    lang_leave,
     conf_common_paint,
     common_timer,
     common_point,

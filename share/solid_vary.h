@@ -77,7 +77,7 @@ struct v_ball
 
 struct s_vary
 {
-    const struct s_base *base;
+    struct s_base *base;
 
     int pc;
     int bc;
@@ -92,11 +92,15 @@ struct s_vary
     struct v_item *hv;
     struct v_swch *xv;
     struct v_ball *uv;
+
+    /* Accumulator for tracking time in integer milliseconds. */
+
+    float ms_accum;
 };
 
 /*---------------------------------------------------------------------------*/
 
-int  sol_load_vary(struct s_vary *, const struct s_base *);
+int  sol_load_vary(struct s_vary *, struct s_base *);
 void sol_free_vary(struct s_vary *);
 
 /*---------------------------------------------------------------------------*/

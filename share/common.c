@@ -25,6 +25,12 @@
 #include <stdarg.h>
 #include <assert.h>
 
+/*
+ * No platform checking, relying on MinGW to provide.
+ */
+#include <sys/stat.h> /* stat() */
+#include <unistd.h>   /* access() */
+
 #include "common.h"
 #include "fs.h"
 
@@ -154,16 +160,9 @@ const char *date_to_str(time_t i)
     return str;
 }
 
-int file_exists(const char *name)
+int file_exists(const char *path)
 {
-    FILE *fp;
-
-    if ((fp = fopen(name, "r")))
-    {
-        fclose(fp);
-        return 1;
-    }
-    return 0;
+    return (access(path, F_OK) == 0);
 }
 
 int file_rename(const char *src, const char *dst)
@@ -173,6 +172,14 @@ int file_rename(const char *src, const char *dst)
         remove(dst);
 #endif
     return rename(src, dst);
+}
+
+int file_size(const char *path)
+{
+    struct stat buf;
+    if (stat(path, &buf) == 0)
+        return (int) buf.st_size;
+    return 0;
 }
 
 void file_copy(FILE *fin, FILE *fout)
@@ -249,6 +256,16 @@ const char *path_next_sep(const char *path)
     return *(path + skip) ? path + skip : NULL;
 }
 
+char *path_normalize(char *path)
+{
+    char *sep = path;
+
+    while ((sep = (char *) path_next_sep(sep)))
+        *sep++ = '/';
+
+    return path;
+}
+
 const char *base_name_sans(const char *name, const char *suffix)
 {
     static char base[MAXSTR];
@@ -282,20 +299,23 @@ const char *base_name(const char *name)
 
 const char *dir_name(const char *name)
 {
-    static char buff[MAXSTR];
-
-    char *sep;
-
-    SAFECPY(buff, name);
-
-    if ((sep = (char *) path_last_sep(buff)))
+    if (name && *name)
     {
-        if (sep == buff)
-            return "/";
+        static char buff[MAXSTR];
 
-        *sep = '\0';
+        char *sep;
 
-        return buff;
+        SAFECPY(buff, name);
+
+        if ((sep = (char *) path_last_sep(buff)))
+        {
+            if (sep == buff)
+                return "/";
+
+            *sep = '\0';
+
+            return buff;
+        }
     }
 
     return ".";
@@ -307,5 +327,47 @@ int rand_between(int low, int high)
 {
     return low + rand() / (RAND_MAX / (high - low + 1) + 1);
 }
+
+/*---------------------------------------------------------------------------*/
+
+#ifdef _WIN32
+
+/* MinGW hides this from ANSI C. MinGW-w64 doesn't. */
+_CRTIMP int _putenv(const char *envstring);
+
+int set_env_var(const char *name, const char *value)
+{
+    if (name)
+    {
+        char str[MAXSTR];
+
+        if (value)
+            sprintf(str, "%s=%s", name, value);
+        else
+            sprintf(str, "%s=", name);
+
+        return (_putenv(str) == 0);
+    }
+    return 0;
+}
+
+#else
+
+extern int setenv(const char *name, const char *value, int overwrite);
+extern int unsetenv(const char *name);
+
+int set_env_var(const char *name, const char *value)
+{
+    if (name)
+    {
+        if (value)
+            return (setenv(name, value, 1) == 0);
+        else
+            return (unsetenv(name) == 0);
+    }
+    return 0;
+}
+
+#endif
 
 /*---------------------------------------------------------------------------*/

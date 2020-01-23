@@ -33,6 +33,9 @@
 #include "fs.h"
 #include "common.h"
 #include "text.h"
+#include "mtrl.h"
+#include "geom.h"
+#include "joy.h"
 
 #include "st_conf.h"
 #include "st_title.h"
@@ -72,19 +75,30 @@ static void toggle_wire(void)
 #endif
 }
 
-static void toggle_lerp(void)
-{
-    extern int enable_interpolation;
-
-    enable_interpolation = !enable_interpolation;
-}
-
 /*---------------------------------------------------------------------------*/
+
+/*
+ * Track held direction keys.
+ */
+static char key_pressed[4];
+
+static const int key_other[4] = { 1, 0, 3, 2 };
+
+static const int *key_axis[4] = {
+    &CONFIG_JOYSTICK_AXIS_Y0,
+    &CONFIG_JOYSTICK_AXIS_Y0,
+    &CONFIG_JOYSTICK_AXIS_X0,
+    &CONFIG_JOYSTICK_AXIS_X0
+};
+
+static const float key_tilt[4] = { -1.0f, +1.0f, -1.0f, +1.0f };
 
 static int handle_key_dn(SDL_Event *e)
 {
     int d = 1;
     int c = e->key.keysym.sym;
+
+    int dir = -1;
 
     /* SDL made me do it. */
 #ifdef __APPLE__
@@ -108,12 +122,16 @@ static int handle_key_dn(SDL_Event *e)
         if (config_cheat())
             toggle_wire();
         break;
-    case KEY_LERP:
+    case KEY_RESOURCES:
         if (config_cheat())
-            toggle_lerp();
+        {
+            light_load();
+            mtrl_reload();
+        }
         break;
 #ifndef __MOBILE__
     case SDLK_RETURN:
+    case SDLK_KP_ENTER:
         d = st_buttn(config_get_d(CONFIG_JOYSTICK_BUTTON_A), 1);
         break;
 #endif
@@ -122,16 +140,27 @@ static int handle_key_dn(SDL_Event *e)
         break;
 
     default:
-        if (config_tst_d(CONFIG_KEY_FORWARD, c))
-            st_stick(config_get_d(CONFIG_JOYSTICK_AXIS_Y), -1.0f);
+        if (config_tst_d(CONFIG_KEY_FORWARD,  c))
+            dir = 0;
         else if (config_tst_d(CONFIG_KEY_BACKWARD, c))
-            st_stick(config_get_d(CONFIG_JOYSTICK_AXIS_Y), +1.0f);
+            dir = 1;
         else if (config_tst_d(CONFIG_KEY_LEFT, c))
-            st_stick(config_get_d(CONFIG_JOYSTICK_AXIS_X), -1.0f);
+            dir = 2;
         else if (config_tst_d(CONFIG_KEY_RIGHT, c))
-            st_stick(config_get_d(CONFIG_JOYSTICK_AXIS_X), +1.0f);
+            dir = 3;
 
-        d = st_keybd(e->key.keysym.sym, 1);
+        if (dir != -1)
+        {
+            /* Ignore auto-repeat on direction keys. */
+
+            if (e->key.repeat)
+                break;
+
+            key_pressed[dir] = 1;
+            st_stick(config_get_d(*key_axis[dir]), key_tilt[dir]);
+        }
+        else
+            d = st_keybd(e->key.keysym.sym, 1);
     }
 
     return d;
@@ -142,10 +171,13 @@ static int handle_key_up(SDL_Event *e)
     int d = 1;
     int c = e->key.keysym.sym;
 
+    int dir = -1;
+
     switch (c)
     {
 #ifndef __MOBILE__
     case SDLK_RETURN:
+    case SDLK_KP_ENTER:
         d = st_buttn(config_get_d(CONFIG_JOYSTICK_BUTTON_A), 0);
         break;
 #endif
@@ -154,15 +186,25 @@ static int handle_key_up(SDL_Event *e)
         break;
     default:
         if (config_tst_d(CONFIG_KEY_FORWARD, c))
-            st_stick(config_get_d(CONFIG_JOYSTICK_AXIS_Y), 0);
+            dir = 0;
         else if (config_tst_d(CONFIG_KEY_BACKWARD, c))
-            st_stick(config_get_d(CONFIG_JOYSTICK_AXIS_Y), 0);
+            dir = 1;
         else if (config_tst_d(CONFIG_KEY_LEFT, c))
-            st_stick(config_get_d(CONFIG_JOYSTICK_AXIS_X), 0);
+            dir = 2;
         else if (config_tst_d(CONFIG_KEY_RIGHT, c))
-            st_stick(config_get_d(CONFIG_JOYSTICK_AXIS_X), 0);
+            dir = 3;
 
-        d = st_keybd(e->key.keysym.sym, 0);
+        if (dir != -1)
+        {
+            key_pressed[dir] = 0;
+
+            if (key_pressed[key_other[dir]])
+                st_stick(config_get_d(*key_axis[dir]), -key_tilt[dir]);
+            else
+                st_stick(config_get_d(*key_axis[dir]), 0.0f);
+        }
+        else
+            d = st_keybd(e->key.keysym.sym, 0);
     }
 
     return d;
@@ -172,6 +214,8 @@ static int loop(void)
 {
     SDL_Event e;
     int d = 1;
+
+    int ax, ay, dx, dy;
 
     /* Process SDL events. */
 
@@ -183,11 +227,23 @@ static int loop(void)
             return 0;
 
         case SDL_MOUSEMOTION:
-            st_point(+e.motion.x,
-                     -e.motion.y + config_get_d(CONFIG_HEIGHT),
-                     +e.motion.xrel,
-                     config_get_d(CONFIG_MOUSE_INVERT)
-                     ? +e.motion.yrel : -e.motion.yrel);
+            /* Convert to OpenGL coordinates. */
+
+            ax = +e.motion.x;
+            ay = -e.motion.y + video.window_h;
+            dx = +e.motion.xrel;
+            dy = (config_get_d(CONFIG_MOUSE_INVERT) ?
+                  +e.motion.yrel : -e.motion.yrel);
+
+            /* Convert to pixels. */
+
+            ax = ROUND(ax * video.device_scale);
+            ay = ROUND(ay * video.device_scale);
+            dx = ROUND(dx * video.device_scale);
+            dy = ROUND(dy * video.device_scale);
+
+            st_point(ax, ay, dx, dy);
+
             break;
 
         case SDL_MOUSEBUTTONDOWN:
@@ -218,23 +274,45 @@ static int loop(void)
                 if (config_get_d(CONFIG_DISPLAY) != video_display())
                     config_set_d(CONFIG_DISPLAY, video_display());
                 break;
+
+            case SDL_WINDOWEVENT_RESIZED:
+                log_printf("Resize event (%u, %dx%d)\n",
+                           e.window.windowID,
+                           e.window.data1,
+                           e.window.data2);
+                break;
+
+            case SDL_WINDOWEVENT_SIZE_CHANGED:
+                log_printf("Size change event (%u, %dx%d)\n",
+                           e.window.windowID,
+                           e.window.data1,
+                           e.window.data2);
+                break;
             }
             break;
 
         case SDL_TEXTINPUT:
-            text_input_str(e.text.text);
+            text_input_str(e.text.text, 1);
             break;
 
         case SDL_JOYAXISMOTION:
-            st_stick(e.jaxis.axis, JOY_VALUE(e.jaxis.value));
+            joy_axis(e.jaxis.which, e.jaxis.axis, JOY_VALUE(e.jaxis.value));
             break;
 
         case SDL_JOYBUTTONDOWN:
-            d = st_buttn(e.jbutton.button, 1);
+            d = joy_button(e.jbutton.which, e.jbutton.button, 1);
             break;
 
         case SDL_JOYBUTTONUP:
-            d = st_buttn(e.jbutton.button, 0);
+            d = joy_button(e.jbutton.which, e.jbutton.button, 0);
+            break;
+
+        case SDL_JOYDEVICEADDED:
+            joy_add(e.jdevice.which);
+            break;
+
+        case SDL_JOYDEVICEREMOVED:
+            joy_remove(e.jdevice.which);
             break;
 
         case SDL_MOUSEWHEEL:
@@ -255,8 +333,8 @@ static int loop(void)
 
         while (tilt_get_button(&b, &s))
         {
-            const int X = config_get_d(CONFIG_JOYSTICK_AXIS_X);
-            const int Y = config_get_d(CONFIG_JOYSTICK_AXIS_Y);
+            const int X = config_get_d(CONFIG_JOYSTICK_AXIS_X0);
+            const int Y = config_get_d(CONFIG_JOYSTICK_AXIS_Y0);
             const int L = config_get_d(CONFIG_JOYSTICK_DPAD_L);
             const int R = config_get_d(CONFIG_JOYSTICK_DPAD_R);
             const int U = config_get_d(CONFIG_JOYSTICK_DPAD_U);
@@ -296,19 +374,17 @@ static char *opt_data;
 static char *opt_replay;
 static char *opt_level;
 
-#define opt_usage \
-    L_(                                                                   \
-        "Usage: %s [options ...]\n"                                       \
-        "Options:\n"                                                      \
-        "  -h, --help                show this usage message.\n"          \
-        "  -v, --version             show version.\n"                     \
-        "  -d, --data <dir>          use 'dir' as game data directory.\n" \
-        "  -r, --replay <file>       play the replay 'file'.\n"           \
-        "  -l, --level <file>        load the level 'file'\n"             \
-    )
+#define opt_usage                                                     \
+    "Usage: %s [options ...]\n"                                       \
+    "Options:\n"                                                      \
+    "  -h, --help                show this usage message.\n"          \
+    "  -v, --version             show version.\n"                     \
+    "  -d, --data <dir>          use 'dir' as game data directory.\n" \
+    "  -r, --replay <file>       play the replay 'file'.\n"           \
+    "  -l, --level <file>        load the level 'file'\n"
 
 #define opt_error(option) \
-    fprintf(stderr, L_("Option '%s' requires an argument.\n"), option)
+    fprintf(stderr, "Option '%s' requires an argument.\n", option)
 
 static void opt_parse(int argc, char **argv)
 {
@@ -456,59 +532,41 @@ static void make_dirs_and_migrate(void)
 
 int main(int argc, char *argv[])
 {
-    SDL_Joystick *joy = NULL;
     int t1, t0;
 
-    if (!fs_init(argv[0]))
+    if (!fs_init(argc > 0 ? argv[0] : NULL))
     {
-        fprintf(stderr, "Failure to initialize virtual file system: %s\n",
+        fprintf(stderr, "Failure to initialize virtual file system (%s)\n",
                 fs_error());
         return 1;
     }
 
-    lang_init("neverball");
-
     opt_parse(argc, argv);
 
     config_paths(opt_data);
+    log_init("Neverball", "neverball.log");
     make_dirs_and_migrate();
 
     /* Initialize SDL. */
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK) == -1)
     {
-        fprintf(stderr, "%s\n", SDL_GetError());
+        log_printf("Failure to initialize SDL (%s)\n", SDL_GetError());
         return 1;
     }
+
+    /* Enable joystick events. */
+
+    joy_init();
 
     /* Intitialize configuration. */
 
     config_init();
     config_load();
 
-    /* Initialize joystick. */
+    /* Initialize localization. */
 
-    if (config_get_d(CONFIG_JOYSTICK) && SDL_NumJoysticks() > 0)
-    {
-#ifndef __MOBILE__
-        joy = SDL_JoystickOpen(config_get_d(CONFIG_JOYSTICK_DEVICE));
-#else
-        int joystick_id = SDL_NumJoysticks()-1;
-        joy = SDL_JoystickOpen(joystick_id);
-        config_set_d(CONFIG_JOYSTICK_DEVICE, joystick_id);
-        if (joystick_id == 0) { //accelerometer
-            config_set_d(CONFIG_JOYSTICK_AXIS_U, -1);
-        } else { //gamepad
-            if (SDL_JoystickNumAxes(joy)>3)
-                config_set_d(CONFIG_JOYSTICK_AXIS_U, 3);
-            else
-                config_set_d(CONFIG_JOYSTICK_AXIS_U, 2);
-            config_set_d(CONFIG_JOYSTICK_AXIS_U_INVERT, 1);
-        }
-#endif
-        if (joy)
-            SDL_JoystickEventState(SDL_ENABLE);
-    }
+    lang_init();
 
     /* Initialize audio. */
 
@@ -519,6 +577,12 @@ int main(int argc, char *argv[])
 
     if (!video_init())
         return 1;
+
+    /* Material system. */
+
+    mtrl_init();
+
+    /* Screen states. */
 
     init_state(&st_null);
 
@@ -552,7 +616,7 @@ int main(int argc, char *argv[])
                 }
             }
         }
-        else fprintf(stderr, "%s: file is not in game path\n", opt_level);
+        else log_printf("File %s is not in game path\n", opt_level);
 
         if (!loaded)
             goto_state(&st_title);
@@ -587,11 +651,11 @@ int main(int argc, char *argv[])
 
     config_save();
 
-    if (joy)
-        SDL_JoystickClose(joy);
+    mtrl_quit();
 
     tilt_free();
     hmd_free();
+    joy_quit();
     SDL_Quit();
 
     return 0;

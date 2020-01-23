@@ -24,6 +24,7 @@
 #include "util.h"
 #include "common.h"
 #include "demo_dir.h"
+#include "video.h"
 
 #include "game_common.h"
 #include "game_server.h"
@@ -95,8 +96,8 @@ static struct thumb
 
 static int gui_demo_thumbs(int id)
 {
-    int w = config_get_d(CONFIG_WIDTH);
-    int h = config_get_d(CONFIG_HEIGHT);
+    int w = video.device_w;
+    int h = video.device_h;
 
     int jd, kd, ld;
     int i, j;
@@ -432,6 +433,8 @@ static int demo_play_gui(void)
 
 static int demo_play_enter(struct state *st, struct state *prev)
 {
+    video_hide_cursor();
+
     if (demo_paused)
     {
         demo_paused = 0;
@@ -455,12 +458,19 @@ static int demo_play_enter(struct state *st, struct state *prev)
     prelude = 1.0f;
 
     speed = SPEED_NORMAL;
-    demo_speed_set(speed);
+    demo_replay_speed(speed);
 
     show_hud = 1;
     hud_update(0);
 
     return demo_play_gui();
+}
+
+static void demo_play_leave(struct state *st, struct state *next, int id)
+{
+    gui_delete(id);
+
+    video_show_cursor();
 }
 
 static void demo_play_paint(int id, float t)
@@ -502,7 +512,7 @@ static void set_speed(int d)
     if (d > 0) speed = SPEED_UP(speed);
     if (d < 0) speed = SPEED_DN(speed);
 
-    demo_speed_set(speed);
+    demo_replay_speed(speed);
     hud_speed_pulse(speed);
 }
 
@@ -515,7 +525,7 @@ static void demo_play_stick(int id, int a, float v, int bump)
     if (!bump)
         return;
 
-    if (config_tst_d(CONFIG_JOYSTICK_AXIS_Y, a))
+    if (config_tst_d(CONFIG_JOYSTICK_AXIS_Y0, a))
     {
         if (v < 0) set_speed(+1);
         if (v > 0) set_speed(-1);
@@ -658,8 +668,13 @@ static int demo_end_keybd(int c, int d)
 {
     if (d)
     {
-        if (demo_paused && c == KEY_EXIT)
-            return demo_end_action(DEMO_CONTINUE, 0);
+        if (c == KEY_EXIT)
+        {
+            if (demo_paused)
+                return demo_end_action(DEMO_CONTINUE, 0);
+            else
+                return demo_end_action(standalone ? DEMO_QUIT : DEMO_KEEP, 0);
+        }
     }
     return 1;
 }
@@ -822,7 +837,7 @@ struct state st_demo = {
 
 struct state st_demo_play = {
     demo_play_enter,
-    shared_leave,
+    demo_play_leave,
     demo_play_paint,
     demo_play_timer,
     NULL,

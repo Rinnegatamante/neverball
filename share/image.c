@@ -23,6 +23,7 @@
 #include "image.h"
 #include "base_image.h"
 #include "config.h"
+#include "video.h"
 
 #include "fs.h"
 #include "fs_png.h"
@@ -36,15 +37,15 @@ void image_snap(const char *filename)
     png_infop   infop  = NULL;
     png_bytep  *bytep  = NULL;
 
-    int w = config_get_d(CONFIG_WIDTH);
-    int h = config_get_d(CONFIG_HEIGHT);
+    int w = video.device_w;
+    int h = video.device_h;
     int i;
 
     unsigned char *p = NULL;
 
     /* Initialize all PNG export data structures. */
 
-    if (!(filep = fs_open(filename, "w")))
+    if (!(filep = fs_open_write(filename)))
         return;
     if (!(writep = png_create_write_struct(PNG_LIBPNG_VER_STRING, 0, 0, 0)))
         return;
@@ -150,7 +151,7 @@ GLuint make_texture(const void *p, int w, int h, int b, int fl)
     }
 #endif
 #ifdef GL_TEXTURE_MAX_ANISOTROPY_EXT
-    if (a) glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, a);
+    if (a && gli.texture_filter_anisotropic) glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, a);
 #endif
 
     /* Copy the image to an OpenGL texture. */
@@ -226,9 +227,6 @@ GLuint make_image_from_font(int *W, int *H,
 
             if ((src = SDL_ConvertSurface(orig, &fmt, orig->flags)) == NULL)
             {
-                fprintf(stderr, _("Failed to convert SDL_ttf surface: %s\n"),
-                        SDL_GetError());
-
                 /* Pretend everything's just fine. */
 
                 src = orig;
@@ -292,11 +290,6 @@ SDL_Surface *load_surface(const char *filename)
         {
             srf = SDL_CreateRGBSurfaceFrom(q, w, h, b * 8, w * b,
                                            RMASK, GMASK, BMASK, AMASK);
-
-            if (!srf)
-                fprintf(stderr,
-                        "Failure to create SDL surface from %s (%s).\n",
-                        filename, SDL_GetError());
         }
         free(p);
     }

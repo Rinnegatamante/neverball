@@ -15,7 +15,6 @@
 #include "gui.h"
 #include "hud.h"
 #include "geom.h"
-#include "item.h"
 #include "ball.h"
 #include "part.h"
 #include "audio.h"
@@ -42,6 +41,7 @@ extern const char ICON[];
 enum
 {
     CONF_VIDEO = GUI_LAST,
+    CONF_LANGUAGE,
     CONF_MOUSE_SENSE,
     CONF_SOUND_VOLUME,
     CONF_MUSIC_VOLUME,
@@ -92,6 +92,10 @@ static int conf_action(int tok, int val)
 
     case CONF_VIDEO:
         goto_state(&st_video);
+        break;
+
+    case CONF_LANGUAGE:
+        goto_state(&st_lang);
         break;
 
     case CONF_PLAYER:
@@ -147,7 +151,7 @@ static int conf_gui(void)
         const char *player = config_get_s(CONFIG_PLAYER);
         const char *ball   = config_get_s(CONFIG_BALL_FILE);
 
-        int name_id = 0, ball_id = 0;
+        int name_id, ball_id, lang_id;
 
         conf_header(id, _("Options"), GUI_BACK);
 
@@ -171,14 +175,21 @@ static int conf_gui(void)
 
         name_id = conf_state(id, _("Player Name"), " ", CONF_PLAYER);
         ball_id = conf_state(id, _("Ball Model"), " ", CONF_BALL);
+        lang_id = conf_state(id, _("Language"), " ", CONF_LANGUAGE);
 
         gui_layout(id, 0, 0);
 
+        gui_set_trunc(lang_id, TRUNC_TAIL);
         gui_set_trunc(name_id, TRUNC_TAIL);
         gui_set_trunc(ball_id, TRUNC_TAIL);
 
         gui_set_label(name_id, player);
         gui_set_label(ball_id, base_name(ball));
+
+        if (*config_get_s(CONFIG_LANGUAGE))
+            gui_set_label(lang_id, lang_name(&curr_lang));
+        else
+            gui_set_label(lang_id, _("Default"));
     }
 
     return id;
@@ -191,6 +202,10 @@ static int conf_enter(struct state *st, struct state *prev)
     return conf_gui();
 }
 
+static void conf_leave(struct state *st, struct state *next, int id)
+{
+    conf_common_leave(st, next, id);
+}
 /*---------------------------------------------------------------------------*/
 
 static int null_enter(struct state *st, struct state *prev)
@@ -198,20 +213,20 @@ static int null_enter(struct state *st, struct state *prev)
     hud_free();
     gui_free();
     geom_free();
-    item_free();
     ball_free();
     shad_free();
     part_free();
+    mtrl_free_objects();
 
     return 0;
 }
 
 static void null_leave(struct state *st, struct state *next, int id)
 {
+    mtrl_load_objects();
     part_init();
     shad_init();
     ball_init();
-    item_init();
     geom_init();
     gui_init();
     hud_init();
@@ -221,7 +236,7 @@ static void null_leave(struct state *st, struct state *next, int id)
 
  struct state st_conf = {
     conf_enter,
-    conf_common_leave,
+    conf_leave,
     conf_common_paint,
     common_timer,
     common_point,

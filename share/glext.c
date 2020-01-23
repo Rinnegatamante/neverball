@@ -16,6 +16,7 @@
 #include <stdio.h>
 
 #include "glext.h"
+#include "log.h"
 
 struct gl_info gli;
 
@@ -33,6 +34,7 @@ PFNGLBUFFERSUBDATA_PROC          glBufferSubData_;
 PFNGLDELETEBUFFERS_PROC          glDeleteBuffers_;
 PFNGLISBUFFER_PROC               glIsBuffer_;
 
+PFNGLPOINTPARAMETERF_PROC        glPointParameterf_;
 PFNGLPOINTPARAMETERFV_PROC       glPointParameterfv_;
 
 PFNGLGETSHADERIV_PROC            glGetShaderiv_;
@@ -89,7 +91,7 @@ int glext_assert(const char *ext)
 {
     if (!glext_check(ext))
     {
-        fprintf(stderr, "Missing required OpenGL extension (%s)\n", ext);
+        log_printf("Missing required OpenGL extension (%s)\n", ext);
         return 0;
     }
     return 1;
@@ -104,28 +106,45 @@ int glext_assert(const char *ext)
 
 /*---------------------------------------------------------------------------*/
 
+static void log_opengl(void)
+{
+    log_printf("GL vendor: %s\n"
+               "GL renderer: %s\n"
+               "GL version: %s\n"
+               "GL extensions: %s\n",
+               glGetString(GL_VENDOR),
+               glGetString(GL_RENDERER),
+               glGetString(GL_VERSION),
+               glGetString(GL_EXTENSIONS));
+}
+
+int glext_fail(const char *title, const char *message)
+{
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, title, message, NULL);
+    return 0;
+}
+
 int glext_init(void)
 {
-    void *ptr = 0;
-
     memset(&gli, 0, sizeof (struct gl_info));
 
     /* Common init. */
 
-    gli.max_texture_units = 1;
-    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &gli.max_texture_size);
+    glGetIntegerv(GL_MAX_TEXTURE_SIZE,  &gli.max_texture_size);
+    glGetIntegerv(GL_MAX_TEXTURE_UNITS, &gli.max_texture_units);
+
+    if (glext_check("GL_EXT_texture_filter_anisotropic"))
+        gli.texture_filter_anisotropic = 1;
+
+    /* Desktop init. */
 
 #if !ENABLE_OPENGLES
-    /* Desktop init. */
+    void *ptr = 0;
 
     if (glext_assert("ARB_multitexture"))
     {
-        glGetIntegerv(GL_MAX_TEXTURE_UNITS, &gli.max_texture_units);
-
         SDL_GL_GFPA(glClientActiveTexture_, "glClientActiveTextureARB");
         SDL_GL_GFPA(glActiveTexture_,       "glActiveTextureARB");
-
-        gli.multitexture = 1;
     }
 
     if (glext_assert("ARB_vertex_buffer_object"))
@@ -136,18 +155,15 @@ int glext_init(void)
         SDL_GL_GFPA(glBufferSubData_,       "glBufferSubDataARB");
         SDL_GL_GFPA(glDeleteBuffers_,       "glDeleteBuffersARB");
         SDL_GL_GFPA(glIsBuffer_,            "glIsBufferARB");
-
-        gli.vertex_buffer_object = 1;
     }
 
     if (glext_assert("ARB_point_parameters"))
     {
+        SDL_GL_GFPA(glPointParameterf_,    "glPointParameterfARB");
         SDL_GL_GFPA(glPointParameterfv_,   "glPointParameterfvARB");
-
-        gli.point_parameters = 1;
     }
 
-    if (glext_assert("ARB_shader_objects"))
+    if (glext_check("ARB_shader_objects"))
     {
         SDL_GL_GFPA(glGetShaderiv_,        "glGetShaderiv");
         SDL_GL_GFPA(glGetShaderInfoLog_,   "glGetShaderInfoLog");
@@ -171,7 +187,7 @@ int glext_init(void)
         gli.shader_objects = 1;
     }
 
-    if (glext_assert("ARB_framebuffer_object"))
+    if (glext_check("ARB_framebuffer_object"))
     {
         SDL_GL_GFPA(glBindFramebuffer_,        "glBindFramebuffer");
         SDL_GL_GFPA(glDeleteFramebuffers_,     "glDeleteFramebuffers");
@@ -185,22 +201,11 @@ int glext_init(void)
     if (glext_check("GREMEDY_string_marker"))
         SDL_GL_GFPA(glStringMarkerGREMEDY_, "glStringMarkerGREMEDY");
 
-    return (gli.multitexture &&
-            gli.vertex_buffer_object &&
-            gli.point_parameters);
-#else
-    /* GLES init. */
+#endif
 
-    glGetIntegerv(GL_MAX_TEXTURE_UNITS, &gli.max_texture_units);
-
-    gli.multitexture = 1;
-    gli.vertex_buffer_object = 1;
-    gli.point_parameters = 1;
-    gli.shader_objects = 1;
-    gli.framebuffer_object = 1;
+    log_opengl();
 
     return 1;
-#endif
 }
 
 /*---------------------------------------------------------------------------*/

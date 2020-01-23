@@ -43,6 +43,7 @@ extern int CONFIG_MOUSE_RESPONSE;
 extern int CONFIG_MOUSE_INVERT;
 extern int CONFIG_VSYNC;
 extern int CONFIG_HMD;
+extern int CONFIG_HIGHDPI;
 extern int CONFIG_MOUSE_CAMERA_1;
 extern int CONFIG_MOUSE_CAMERA_2;
 extern int CONFIG_MOUSE_CAMERA_3;
@@ -54,14 +55,15 @@ extern int CONFIG_FPS;
 extern int CONFIG_SOUND_VOLUME;
 extern int CONFIG_MUSIC_VOLUME;
 extern int CONFIG_JOYSTICK;
-extern int CONFIG_JOYSTICK_DEVICE;
 extern int CONFIG_JOYSTICK_RESPONSE;
-extern int CONFIG_JOYSTICK_AXIS_X;
-extern int CONFIG_JOYSTICK_AXIS_Y;
-extern int CONFIG_JOYSTICK_AXIS_U;
-extern int CONFIG_JOYSTICK_AXIS_X_INVERT;
-extern int CONFIG_JOYSTICK_AXIS_Y_INVERT;
-extern int CONFIG_JOYSTICK_AXIS_U_INVERT;
+extern int CONFIG_JOYSTICK_AXIS_X0;
+extern int CONFIG_JOYSTICK_AXIS_Y0;
+extern int CONFIG_JOYSTICK_AXIS_X1;
+extern int CONFIG_JOYSTICK_AXIS_Y1;
+extern int CONFIG_JOYSTICK_AXIS_X0_INVERT;
+extern int CONFIG_JOYSTICK_AXIS_Y0_INVERT;
+extern int CONFIG_JOYSTICK_AXIS_X1_INVERT;
+extern int CONFIG_JOYSTICK_AXIS_Y1_INVERT;
 
 extern int CONFIG_JOYSTICK_BUTTON_A;
 extern int CONFIG_JOYSTICK_BUTTON_B;
@@ -71,6 +73,7 @@ extern int CONFIG_JOYSTICK_BUTTON_L1;
 extern int CONFIG_JOYSTICK_BUTTON_R1;
 extern int CONFIG_JOYSTICK_BUTTON_L2;
 extern int CONFIG_JOYSTICK_BUTTON_R2;
+extern int CONFIG_JOYSTICK_BUTTON_SELECT;
 extern int CONFIG_JOYSTICK_BUTTON_START;
 extern int CONFIG_JOYSTICK_DPAD_L;
 extern int CONFIG_JOYSTICK_DPAD_R;
@@ -110,6 +113,8 @@ extern int CONFIG_PLAYER;
 extern int CONFIG_BALL_FILE;
 extern int CONFIG_WIIMOTE_ADDR;
 extern int CONFIG_REPLAY_NAME;
+extern int CONFIG_LANGUAGE;
+extern int CONFIG_THEME;
 
 /*---------------------------------------------------------------------------*/
 
@@ -145,7 +150,7 @@ int config_screenshot(void);
 
 #define KEY_LOOKAROUND SDLK_F5
 #define KEY_WIREFRAME  SDLK_F6
-#define KEY_LERP       SDLK_F7
+#define KEY_RESOURCES  SDLK_F7
 #define KEY_LEVELSHOTS SDLK_F8
 
 #define KEY_FPS        SDLK_F9

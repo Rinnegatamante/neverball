@@ -19,6 +19,7 @@
 #include "video.h"
 #include "common.h"
 #include "hmd.h"
+#include "geom.h"
 
 /*---------------------------------------------------------------------------*/
 
@@ -187,6 +188,10 @@ void st_timer(float dt)
             sc->t = state_time + STICK_REPEAT_TIME;
         }
     }
+
+    /* Step SOL animations. (This is not the best place to put this.) */
+
+    geom_step(dt);
 }
 
 void st_point(int x, int y, int dx, int dy)
@@ -207,9 +212,10 @@ void st_stick(int a, float v)
         const int *num;
         const int *inv;
     } axes[] = {
-        { &CONFIG_JOYSTICK_AXIS_X, &CONFIG_JOYSTICK_AXIS_X_INVERT },
-        { &CONFIG_JOYSTICK_AXIS_Y, &CONFIG_JOYSTICK_AXIS_Y_INVERT },
-        { &CONFIG_JOYSTICK_AXIS_U, &CONFIG_JOYSTICK_AXIS_U_INVERT }
+        { &CONFIG_JOYSTICK_AXIS_X0, &CONFIG_JOYSTICK_AXIS_X0_INVERT },
+        { &CONFIG_JOYSTICK_AXIS_Y0, &CONFIG_JOYSTICK_AXIS_Y0_INVERT },
+        { &CONFIG_JOYSTICK_AXIS_X1, &CONFIG_JOYSTICK_AXIS_X1_INVERT },
+        { &CONFIG_JOYSTICK_AXIS_Y1, &CONFIG_JOYSTICK_AXIS_Y1_INVERT }
     };
 
     int i;

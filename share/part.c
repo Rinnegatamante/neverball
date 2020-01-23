@@ -23,6 +23,8 @@
 #include "vec3.h"
 #include "image.h"
 #include "geom.h"
+#include "hmd.h"
+#include "video.h"
 
 /*---------------------------------------------------------------------------*/
 /*
@@ -57,7 +59,7 @@ static struct b_mtrl coin_base_mtrl =
     { 0.0f }, 0.0f, M_TRANSPARENT, IMG_PART_STAR
 };
 
-static struct d_mtrl coin_draw_mtrl;
+static int coin_mtrl;
 
 /*---------------------------------------------------------------------------*/
 
@@ -137,7 +139,7 @@ void part_reset(void)
 
 void part_init(void)
 {
-    sol_load_mtrl(&coin_draw_mtrl, &coin_base_mtrl);
+    coin_mtrl = mtrl_cache(&coin_base_mtrl);
 
     memset(coin_vary, 0, PART_MAX_COIN * sizeof (struct part_vary));
     memset(coin_draw, 0, PART_MAX_COIN * sizeof (struct part_draw));
@@ -157,7 +159,8 @@ void part_free(void)
 {
     glDeleteBuffers_(1, &coin_vbo);
 
-    sol_free_mtrl(&coin_draw_mtrl);
+    mtrl_free(coin_mtrl);
+    coin_mtrl = 0;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -223,10 +226,9 @@ void part_step(const float *g, float dt)
 
 void part_draw_coin(struct s_rend *rend)
 {
-    const GLfloat c[3] = { 0.0f, 1.0f, 0.0f };
-    GLint s = config_get_d(CONFIG_HEIGHT) / 8;
+    GLfloat height = (hmd_stat() ? 0.3f : 1.0f) * video.device_h;
 
-    sol_apply_mtrl(&coin_draw_mtrl, rend);
+    r_apply_mtrl(rend, coin_mtrl);
 
     /* Draw the entire buffer.  Dead particles have zero opacity anyway. */
 
@@ -252,9 +254,11 @@ void part_draw_coin(struct s_rend *rend)
 
         glEnable(GL_POINT_SPRITE);
         {
+            const GLfloat c[3] = { 0.0f, 0.0f, 1.0f };
+
             glTexEnvi(GL_POINT_SPRITE, GL_COORD_REPLACE, GL_TRUE);
             glPointParameterfv_(GL_POINT_DISTANCE_ATTENUATION, c);
-            glPointSize(s);
+            glPointSize(height / 6);
 
             glDrawArrays(GL_POINTS, 0, PART_MAX_COIN);
         }
@@ -263,6 +267,8 @@ void part_draw_coin(struct s_rend *rend)
     glDisableClientState(GL_COLOR_ARRAY);
     glEnableClientState(GL_NORMAL_ARRAY);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 /*---------------------------------------------------------------------------*/
