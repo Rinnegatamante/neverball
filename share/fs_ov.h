@@ -2,7 +2,7 @@
 #define FS_OV
 
 #define OV_EXCLUDE_STATIC_CALLBACKS
-#ifndef __MOBILE__
+#ifndef __BLACKBERRY__
 #include <vorbis/vorbisfile.h>
 #else
 #include <ivorbisfile.h>
