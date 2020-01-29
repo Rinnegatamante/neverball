@@ -441,6 +441,10 @@ static void play_loop_stick(int id, int a, float v, int bump)
         game_set_z(v);
     if (config_tst_d(CONFIG_JOYSTICK_AXIS_Y0, a))
         game_set_x(v);
+#ifdef __MOBILE__
+    if (SDL_NumJoysticks() < 2)
+        return;
+#endif
     if (config_tst_d(CONFIG_JOYSTICK_AXIS_X1, a))
     {
         if      (v > 0.0f)

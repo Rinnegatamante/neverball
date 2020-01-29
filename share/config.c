@@ -414,6 +414,12 @@ void config_load(void)
         dirty = 0;
     }
 
+#ifdef __MOBILE__
+    config_set_d(CONFIG_JOYSTICK_AXIS_X1, 2);
+    config_set_d(CONFIG_JOYSTICK_AXIS_Y1, 3);
+    config_set_d(CONFIG_JOYSTICK_AXIS_X1_INVERT, 1);
+#endif
+
 #ifdef __BLACKBERRY__
 	config_set_d(CONFIG_REFLECTION, 0); //FIXME: Poor performance with reflections enabled!
     config_set_d(CONFIG_SHADOW, 0); //FIXME: Some GLES code is buggy with shadows enabled!

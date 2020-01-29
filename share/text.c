@@ -103,12 +103,20 @@ void text_input_start(void (*cb)(int))
     text_input[0] = 0;
     CALLBACK(0);
 
+#ifdef __MOBILE__
+    if (SDL_NumJoysticks() > 1)
+        return;
+#endif
     SDL_StartTextInput();
 }
 
 void text_input_stop(void)
 {
     on_text_input = NULL;
+#ifdef __MOBILE__
+    if (SDL_NumJoysticks() > 1)
+        return;
+#endif
     SDL_StopTextInput();
 }
 

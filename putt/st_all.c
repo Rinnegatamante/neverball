@@ -999,6 +999,10 @@ static void stroke_point(int id, int x, int y, int dx, int dy)
 
 static void stroke_stick(int id, int a, float v, int bump)
 {
+#ifdef __MOBILE__
+    if (SDL_NumJoysticks() < 2)
+        return;
+#endif
     if      (config_tst_d(CONFIG_JOYSTICK_AXIS_X0, a))
         stroke_rotate = 6 * v;
     else if (config_tst_d(CONFIG_JOYSTICK_AXIS_Y0, a))

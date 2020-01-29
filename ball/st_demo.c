@@ -519,7 +519,7 @@ static void set_speed(int d)
 static void demo_play_stick(int id, int a, float v, int bump)
 {
 #ifdef __MOBILE__
-    if (config_tst_d(CONFIG_JOYSTICK_DEVICE, 0))
+    if (SDL_NumJoysticks() < 2)
         return;
 #endif
     if (!bump)

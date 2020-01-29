@@ -52,6 +52,12 @@ void joy_add(int device)
     log_printf("Joystick added (device %d)\n", device);
 
     SDL_Joystick *joy = SDL_JoystickOpen(device);
+#ifdef __MOBILE__
+    if (SDL_NumJoysticks() > 1 && SDL_JoystickNumButtons(joy) == 0) {
+        SDL_JoystickClose(joy);
+        return;
+    }
+#endif
 
     if (joy)
     {
