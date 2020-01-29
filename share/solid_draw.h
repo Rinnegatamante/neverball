@@ -20,6 +20,10 @@
 #include "solid_vary.h"
 #include "mtrl.h"
 
+#ifdef ANDROID
+#undef PASS_MAX
+#endif
+
 /*
  * Rendered solid data.
  */
