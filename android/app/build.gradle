@@ -1,0 +1,70 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 29
+
+    defaultConfig {
+        applicationId = 'com.drodin.neverball'
+        versionCode = 1
+        versionName = "1.6.0-1"
+
+        minSdkVersion 16
+        targetSdkVersion 29
+
+        ndk {
+            //abiFilters 'x86'
+            //abiFilters 'armeabi-v7a'
+        }
+
+        externalNativeBuild {
+            cmake {
+                arguments '-DANDROID_STL=c++_static',
+                          '-DANDROID_STUDIO=ON',
+                          '-DCMAKE_VERBOSE_MAKEFILE=ON',
+                          '-DHUNTER_KEEP_PACKAGE_SOURCES=ON',
+                          "-DVERSION_NAME=${versionName}"
+            }
+        }
+    }
+    flavorDimensions "version"
+    productFlavors {
+        ball {
+            resValue "string", "app_name", "Neverball"
+            applicationIdSuffix ".ball"
+            externalNativeBuild {
+                cmake {
+                    targets "neverball"
+                }
+            }
+        }
+        putt {
+            resValue "string", "app_name", "Neverputt"
+            applicationIdSuffix ".putt"
+            externalNativeBuild {
+                cmake {
+                    targets "neverputt"
+                }
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'),
+                    'proguard-rules.pro'
+        }
+        debug {
+        }
+    }
+    externalNativeBuild {
+        cmake {
+            path '../../CMakeLists.txt'
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation 'androidx.appcompat:appcompat:1.1.0'
+    implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
+}
