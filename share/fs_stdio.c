@@ -24,6 +24,22 @@
 #include "list.h"
 #include "common.h"
 
+#ifdef ANDROID
+#include "config.h"
+#include <jni.h>
+#include <android/asset_manager_jni.h>
+#include <SDL.h>
+static JNIEnv* env;
+static jobject activity;
+static jclass clazz;
+static jmethodID copyAssetMethodID;
+void fs_android_asset(const char* path) {
+    jstring fname = (*env)->NewStringUTF(env, path);
+    (*env)->CallBooleanMethod(env, activity, copyAssetMethodID, fname);
+    (*env)->DeleteLocalRef(env, fname);
+}
+#endif
+
 /*
  * This file implements the low-level virtual file system routines
  * using stdio.
@@ -42,7 +58,16 @@ static List  fs_path;
 
 int fs_init(const char *argv0)
 {
+#ifdef ANDROID
+	env = (JNIEnv*)SDL_AndroidGetJNIEnv();
+	activity = (jobject)SDL_AndroidGetActivity();
+	clazz = (*env)->GetObjectClass(env, activity);
+	copyAssetMethodID = (*env)->GetMethodID(env, clazz, "copyAsset", "(Ljava/lang/String;)Z");
+
+	fs_dir_base = (char*) SDL_AndroidGetInternalStoragePath();
+#else
     fs_dir_base  = strdup(argv0 && *argv0 ? dir_name(argv0) : ".");
+#endif
     fs_dir_write = NULL;
     fs_path      = NULL;
 
@@ -69,6 +94,11 @@ int fs_quit(void)
         fs_path = list_rest(fs_path);
     }
 
+#ifdef ANDROID
+	(*env)->DeleteLocalRef(env, clazz);
+	(*env)->DeleteLocalRef(env, activity);
+#endif
+
     return 1;
 }
 
@@ -87,6 +117,10 @@ const char *fs_base_dir(void)
 int fs_add_path(const char *path)
 {
     /* TODO: ZIP archive support. */
+
+#ifdef ANDROID
+    dir_make(path);
+#endif
 
     if (dir_exists(path))
     {
@@ -186,6 +220,10 @@ static void free_files(List files)
 
 Array fs_dir_scan(const char *path, int (*filter)(struct dir_item *))
 {
+#ifdef ANDROID
+    fs_android_asset(path);
+#endif
+
     return dir_scan(path, filter, list_files, free_files);
 }
 
@@ -200,6 +238,10 @@ static char *real_path(const char *path)
 {
     char *real = NULL;
     List p;
+
+#ifdef ANDROID
+    fs_android_asset(path);
+#endif
 
     for (p = fs_path; p; p = p->next)
     {
