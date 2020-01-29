@@ -120,6 +120,13 @@ int video_display(void)
 
 int video_init(void)
 {
+#ifdef __MOBILE__
+    SDL_DisplayMode dm;
+    SDL_GetCurrentDisplayMode(0, &dm);
+    config_set_d(CONFIG_FULLSCREEN, 1);
+    config_set_d(CONFIG_WIDTH, dm.w);
+    config_set_d(CONFIG_HEIGHT, dm.h);
+#endif
     if (!video_mode(config_get_d(CONFIG_FULLSCREEN),
                     config_get_d(CONFIG_WIDTH),
                     config_get_d(CONFIG_HEIGHT)))
