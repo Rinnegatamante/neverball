@@ -914,6 +914,12 @@ void r_apply_mtrl(struct s_rend *rend, int mi)
             glDisable(GL_TEXTURE_GEN_T);
         }
     }
+#else
+    // TODO: Proper environment texturing for OpenGL ES
+    if (mp_flags & M_ENVIRONMENT)
+        glDisable(GL_TEXTURE_2D);
+    else
+        glEnable(GL_TEXTURE_2D);
 #endif
 
     /* Additive blending. */
