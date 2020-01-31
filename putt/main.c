@@ -154,7 +154,7 @@ static int loop(void)
                 d = st_buttn(config_get_d(CONFIG_JOYSTICK_BUTTON_A), 1);
                 break;
 #endif
-            case SDLK_ESCAPE:
+            case KEY_EXIT:
                 if (video_get_grab())
                     d = st_buttn(config_get_d(CONFIG_JOYSTICK_BUTTON_START), 1);
                 else
@@ -187,7 +187,7 @@ static int loop(void)
                 d = st_buttn(config_get_d(CONFIG_JOYSTICK_BUTTON_A), 0);
                 break;
 #endif
-            case SDLK_ESCAPE:
+            case KEY_EXIT:
                 if (video_get_grab())
                     d = st_buttn(config_get_d(CONFIG_JOYSTICK_BUTTON_START), 0);
                 else
