@@ -325,6 +325,7 @@ static int video_gui(void)
 
     if ((id = gui_vstack(0)))
     {
+#ifndef __MOBILE__
         char resolution[sizeof ("12345678 x 12345678")];
         const char *display;
         int dpy = config_get_d(CONFIG_DISPLAY);
@@ -335,9 +336,11 @@ static int video_gui(void)
 
         if (!(display = SDL_GetDisplayName(dpy)))
             display = _("Unknown Display");
+#endif
 
         conf_header(id, _("Graphics"), GUI_BACK);
 
+#ifndef __MOBILE__
         if ((jd = conf_state(id, _("Display"), "Longest Name", VIDEO_DISPLAY)))
         {
             gui_set_trunc(jd, TRUNC_TAIL);
@@ -375,6 +378,7 @@ static int video_gui(void)
                     multisample_opts, ARRAYSIZE(multisample_opts));
 
         gui_space(id);
+#endif
 
         conf_toggle(id, _("Reflection"),   VIDEO_REFLECTION,
                     config_get_d(CONFIG_REFLECTION), _("On"), 1, _("Off"), 0);
