@@ -146,7 +146,11 @@ int config_screenshot(void);
 
 /* Names for some hard-coded keys. */
 
+#ifndef ANDROID
 #define KEY_EXIT       SDLK_ESCAPE
+#else
+#define KEY_EXIT       SDLK_AC_BACK
+#endif
 
 #define KEY_LOOKAROUND SDLK_F5
 #define KEY_WIREFRAME  SDLK_F6

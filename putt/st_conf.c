@@ -211,7 +211,7 @@ static int conf_click(int b, int d)
 
 static int conf_keybd(int c, int d)
 {
-    return (d && c == SDLK_ESCAPE) ? goto_state(&st_title) : 1;
+    return (d && c == KEY_EXIT) ? goto_state(&st_title) : 1;
 }
 
 static int conf_buttn(int b, int d)
