@@ -423,7 +423,6 @@ void config_load(void)
 #ifdef __BLACKBERRY__
 	config_set_d(CONFIG_REFLECTION, 0); //FIXME: Poor performance with reflections enabled!
     config_set_d(CONFIG_SHADOW, 0); //FIXME: Some GLES code is buggy with shadows enabled!
-	config_set_d(CONFIG_KEY_CAMERA_TOGGLE, SDLK_MENU);
     config_set_d(CONFIG_JOYSTICK_BUTTON_A, 0);
     config_set_d(CONFIG_JOYSTICK_BUTTON_B, 1);
     config_set_d(CONFIG_JOYSTICK_BUTTON_X, 3);

@@ -35,6 +35,10 @@
 
 /*---------------------------------------------------------------------------*/
 
+#ifdef __MOBILE__
+static int pending_camera_change = 0;
+#endif
+
 static void set_camera(int c)
 {
     config_set_d(CONFIG_CAMERA, c);
@@ -426,8 +430,10 @@ static void play_loop_timer(int id, float dt)
 static void play_loop_point(int id, int x, int y, int dx, int dy)
 {
 #ifdef __MOBILE__
-    if (x < config_get_d(CONFIG_WIDTH)/2)
+    if (x < config_get_d(CONFIG_WIDTH)/3)
         rot_dir = DIR_R;
+    else if (x > config_get_d(CONFIG_WIDTH)/3 && x < config_get_d(CONFIG_WIDTH)/3 * 2)
+        pending_camera_change = 1;
     else
         rot_dir = DIR_L;
     return;
@@ -466,7 +472,7 @@ static int play_loop_click(int b, int d)
         if (config_tst_d(CONFIG_MOUSE_CAMERA_L, b))
             rot_set(DIR_L, 1.0f, 0);
 #else
-        rot_set(rot_dir, 1.0f, 0);
+        rot_set(rot_dir, 0.5f, 0);
 #endif
 
         click_camera(b);
@@ -480,6 +486,10 @@ static int play_loop_click(int b, int d)
             rot_clr(DIR_L);
 #else
         rot_clr(rot_dir);
+        if (pending_camera_change) {
+            pending_camera_change = 0;
+            next_camera();
+        }
 #endif
     }
 

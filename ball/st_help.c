@@ -193,7 +193,9 @@ static int page_controls(int id)
                               "Hold Shift for faster view rotation.");
 #else
     const char *s_rotate  = _("Touch left/right side of the screen or use\\"
-                              "Gamepad 2nd analog stick to rotate the view.");
+                              "Gamepad 2nd analog stick to rotate the view.\\"
+                              "\\"
+                              "Tap center of the screen to toggle camera.");
 #endif
     const char *s_exit    = _("Exit / Pause");
     const char *s_camera1 = _("Chase Camera");
@@ -233,21 +235,12 @@ static int page_controls(int id)
 #endif
 #endif
         }
+#ifndef __MOBILE__
         if ((kd = gui_harray(jd)))
         {
-#ifndef __MOBILE__
             gui_label(kd, s_camera1, GUI_SML, gui_wht, gui_wht);
             gui_label(kd, SDL_GetKeyName(k_cam1), GUI_SML, gui_yel, gui_yel);
-#else
-            gui_label(kd, "Switch Camera", GUI_SML, gui_wht, gui_wht);
-#ifdef __BLACKBERRY__
-            gui_label(kd, "Swipe Down / X Btn.", GUI_SML, gui_yel, gui_yel);
-#else
-            gui_label(kd, "Menu Key / X Btn.", GUI_SML, gui_yel, gui_yel);
-#endif
-#endif
         }
-#ifndef __MOBILE__
         if ((kd = gui_harray(jd)))
         {
             gui_label(kd, s_camera2, GUI_SML, gui_wht, gui_wht);
