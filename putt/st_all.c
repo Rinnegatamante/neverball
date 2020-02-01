@@ -927,13 +927,24 @@ static int flyby_buttn(int b, int d)
 static int stroke_rotate = 0;
 static int stroke_rotate_alt = 0;
 static int stroke_mag = 0;
-#ifdef __MOBILE__
-static int skip_point    = 1;
-static int stroke        = 0;
-#endif
 
 static int stroke_enter(struct state *st, struct state *prev)
 {
+    int id = 0;
+
+#ifdef __MOBILE__
+    if ((id = gui_vstack(0)))
+    {
+        gui_state(id, _("   S   "), GUI_SML, -1, 0);
+        gui_state(id, _("   W   "), GUI_SML, -2, 0);
+        gui_state(id, _("   I   "), GUI_SML, -3, 0);
+        gui_state(id, _("   N   "), GUI_SML, -4, 0);
+        gui_state(id, _("   G   "), GUI_SML, -5, 0);
+        gui_set_rect(id, GUI_RGT);
+        gui_layout(id, -1, 0);
+    }
+#endif
+
     hud_init();
     game_clr_mag();
     config_set_d(CONFIG_CAMERA, 2);
@@ -942,11 +953,14 @@ static int stroke_enter(struct state *st, struct state *prev)
     if (paused)
         paused = 0;
 
-    return 0;
+    return id;
 }
 
 static void stroke_leave(struct state *st, struct state *next, int id)
 {
+#ifdef __MOBILE__
+    gui_delete(id);
+#endif
     hud_free();
     video_clr_grab();
     config_set_d(CONFIG_CAMERA, 0);
@@ -957,6 +971,9 @@ static void stroke_leave(struct state *st, struct state *next, int id)
 static void stroke_paint(int id, float t)
 {
     game_draw(0, t);
+#ifdef __MOBILE__
+    gui_paint(id);
+#endif
     hud_paint();
 }
 
@@ -981,20 +998,12 @@ static void stroke_timer(int id, float dt)
 static void stroke_point(int id, int x, int y, int dx, int dy)
 {
 #ifdef __MOBILE__
-    if (x<100*config_get_d(CONFIG_WIDTH)/1024 && y<400*config_get_d(CONFIG_HEIGHT)/600 && y>200*config_get_d(CONFIG_HEIGHT)/600) {
-        stroke = 1;
-        return;
-    }
-
-    if (skip_point)
-        return;
-    
+    gui_pulse(gui_point(id, x, y), 1.2f);
     game_set_rot(-dx);
-    game_set_mag(dy);
 #else
     game_set_rot(dx);
-    game_set_mag(dy);
 #endif
+    game_set_mag(dy);
 }
 
 static void stroke_stick(int id, int a, float v, int bump)
@@ -1011,19 +1020,14 @@ static void stroke_stick(int id, int a, float v, int bump)
 
 static int stroke_click(int b, int d)
 {
-#ifndef __MOBILE__
-    return (d && b == SDL_BUTTON_LEFT) ? goto_state(&st_roll) : 1;
-#else
-    if (d == SDL_RELEASED) {
-        skip_point = 1;
-        if (stroke) {
-            stroke = 0;
-            return goto_state(&st_roll);
-        }
-    } else
-        skip_point = 0;
-    return 1;
+#ifdef __MOBILE__
+    int id = gui_token(gui_active());
+    gui_focus(0);
+
+    if (id >= 0)
+        return 1;
 #endif
+    return (d && b == SDL_BUTTON_LEFT) ? goto_state(&st_roll) : 1;
 }
 
 static int stroke_buttn(int b, int d)
