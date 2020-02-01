@@ -152,6 +152,7 @@ static int conf_enter(struct state *st, struct state *prev)
 
         gui_space(id);
 
+#if ENABLE_NSL
         if ((jd = gui_harray(id)) &&
             (kd = gui_harray(jd)))
         {
@@ -159,6 +160,7 @@ static int conf_enter(struct state *st, struct state *prev)
 
             gui_label(jd, _("Language"),  GUI_SML, 0, 0);
         }
+#endif
 
         gui_layout(id, 0, 0);
     }

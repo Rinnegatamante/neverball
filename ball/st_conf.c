@@ -178,21 +178,27 @@ static int conf_gui(void)
 
         name_id = conf_state(id, _("Player Name"), " ", CONF_PLAYER);
         ball_id = conf_state(id, _("Ball Model"), " ", CONF_BALL);
+#if ENABLE_NLS
         lang_id = conf_state(id, _("Language"), " ", CONF_LANGUAGE);
+#endif
 
         gui_layout(id, 0, 0);
 
+#if ENABLE_NLS
         gui_set_trunc(lang_id, TRUNC_TAIL);
+#endif
         gui_set_trunc(name_id, TRUNC_TAIL);
         gui_set_trunc(ball_id, TRUNC_TAIL);
 
         gui_set_label(name_id, player);
         gui_set_label(ball_id, base_name(ball));
 
+#if ENABLE_NLS
         if (*config_get_s(CONFIG_LANGUAGE))
             gui_set_label(lang_id, lang_name(&curr_lang));
         else
             gui_set_label(lang_id, _("Default"));
+#endif
     }
 
     return id;
