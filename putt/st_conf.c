@@ -174,6 +174,9 @@ static void conf_leave(struct state *st, struct state *next, int id)
 {
     back_free();
     gui_delete(id);
+#ifdef __MOBILE__
+    config_save();
+#endif
 }
 
 static void conf_paint(int id, float st)

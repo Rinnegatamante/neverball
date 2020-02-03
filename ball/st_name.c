@@ -154,6 +154,9 @@ static void name_leave(struct state *st, struct state *next, int id)
     text_input_stop();
 
     gui_delete(id);
+#ifdef __MOBILE__
+    config_save();
+#endif
 }
 
 static void name_paint(int id, float t)

@@ -98,9 +98,11 @@ static int title_action(int tok, int val)
 
     switch (tok)
     {
+#ifndef __MOBILE__
     case GUI_BACK:
         return 0;
         break;
+#endif
 
     case TITLE_PLAY:
         if (strlen(config_get_s(CONFIG_PLAYER)) == 0)
@@ -181,7 +183,9 @@ static int title_gui(void)
                 gui_state(kd, gt_prefix("menu^Replay"),  GUI_MED, TITLE_DEMO, 0);
                 gui_state(kd, gt_prefix("menu^Help"),    GUI_MED, TITLE_HELP, 0);
                 gui_state(kd, gt_prefix("menu^Options"), GUI_MED, TITLE_CONF, 0);
+#ifndef __MOBILE__
                 gui_state(kd, gt_prefix("menu^Exit"),    GUI_MED, GUI_BACK, 0);
+#endif
 
                 /* Hilight the start button. */
 

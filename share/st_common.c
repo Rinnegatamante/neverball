@@ -208,6 +208,9 @@ void conf_common_leave(struct state *st, struct state *next, int id)
     back_free();
 
     gui_delete(id);
+#ifdef __MOBILE__
+    config_save();
+#endif
 }
 
 void conf_common_paint(int id, float t)

@@ -204,7 +204,9 @@ static int title_action(int i)
     {
     case TITLE_PLAY: return goto_state(&st_course);
     case TITLE_CONF: return goto_state(&st_conf);
+#ifndef __MOBILE__
     case TITLE_EXIT: return 0;
+#endif
     }
     return 1;
 }
@@ -228,7 +230,9 @@ static int title_enter(struct state *st, struct state *prev)
             {
                 gui_start(kd, gt_prefix("menu^Play"),    GUI_MED, TITLE_PLAY, 1);
                 gui_state(kd, gt_prefix("menu^Options"), GUI_MED, TITLE_CONF, 0);
+#ifndef __MOBILE__
                 gui_state(kd, gt_prefix("menu^Exit"),    GUI_MED, TITLE_EXIT, 0);
+#endif
             }
 
             gui_filler(jd);
