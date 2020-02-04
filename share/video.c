@@ -414,6 +414,7 @@ static int grabbed = 0;
 
 void video_set_grab(int w)
 {
+#ifndef __MOBILE__
 #ifdef NDEBUG
     if (w)
     {
@@ -430,12 +431,14 @@ void video_set_grab(int w)
     SDL_SetWindowGrab(window, SDL_TRUE);
     video_hide_cursor();
 #endif
+#endif
 
     grabbed = 1;
 }
 
 void video_clr_grab(void)
 {
+#ifndef __MOBILE__
 #ifdef NDEBUG
     SDL_SetRelativeMouseMode(SDL_FALSE);
 
@@ -445,6 +448,7 @@ void video_clr_grab(void)
         SDL_SetWindowGrab(window, SDL_FALSE);
 
     video_show_cursor();
+#endif
 #endif
     grabbed = 0;
 }
