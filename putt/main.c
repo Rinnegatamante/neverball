@@ -314,6 +314,9 @@ int main(int argc, char *argv[])
 
         config_init();
         config_load();
+#ifdef __MOBILE__
+        config_set_d(CONFIG_SHADOW, 0); //FIXME: Some GLES code is buggy with shadows enabled!
+#endif
 
         /* Initialize localization. */
 
