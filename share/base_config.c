@@ -26,11 +26,27 @@
 #include <shlobj.h>
 #endif
 
+#ifdef __APPLE__
+#include <CoreServices/CoreServices.h>
+#endif
+
 /*---------------------------------------------------------------------------*/
 
 static const char *pick_data_path(const char *arg_data_path)
 {
     static char dir[MAXSTR];
+#ifdef __APPLE__
+    CFURLRef appUrlRef = CFBundleCopyBundleURL(CFBundleGetMainBundle());
+    CFStringRef macPath = CFURLCopyFileSystemPath(appUrlRef, kCFURLPOSIXPathStyle);
+    const char *data_dir = CFStringGetCStringPtr(macPath, CFStringGetSystemEncoding());
+    CFRelease(appUrlRef);
+    CFRelease(macPath);
+
+    SAFECPY(dir, data_dir);
+    SAFECAT(dir, "/Contents/Resources/data");
+
+    return dir;
+#endif
     char *env;
 
     if (arg_data_path)

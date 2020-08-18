@@ -31,11 +31,13 @@ HunterGate(
 
 project(neverball)
 
-if(NOT ANDROID)
-    find_package(OpenGL)
-    find_package(intl)
-else()
+if(ANDROID)
     set(OPENGL_LIBRARIES -lGLESv1_CM)
+else()
+    find_package(OpenGL MODULE REQUIRED)
+    if (NOT APPLE)
+        find_package(intl)
+    endif()
 endif()
 
 hunter_add_package(SDL2)
@@ -204,11 +206,7 @@ elseif(ENABLE_FS STREQUAL "physfs")
     list(APPEND PUTT_SRC share/fs_physfs.c)
 endif()
 
-if(NOT ANDROID)
-    add_executable(mapc ${MAPC_SRC})
-    add_executable(neverball ${BALL_SRC})
-    add_executable(neverputt ${PUTT_SRC})
-else()
+if(ANDROID)
     add_library(neverball SHARED ${BALL_SRC})
     add_library(neverputt SHARED ${PUTT_SRC})
 
@@ -223,6 +221,58 @@ else()
     set(ENABLE_NLS OFF)
 
     set_target_properties(neverball neverputt PROPERTIES DEBUG_POSTFIX "")
+elseif(APPLE)
+    file(GLOB SHARE_DATA RELATIVE ${CMAKE_CURRENT_LIST_DIR} assets/share/data/*)
+    file(GLOB BALL_DATA RELATIVE ${CMAKE_CURRENT_LIST_DIR} assets/ball/data/*)
+    file(GLOB PUTT_DATA RELATIVE ${CMAKE_CURRENT_LIST_DIR} assets/putt/data/*)
+
+    add_executable(neverball MACOSX_BUNDLE ${BALL_SRC} ${BALL_DATA} ${SHARE_DATA} apple/macos/neverball.icns apple/macos/neverball.entitlements)
+    add_executable(neverputt MACOSX_BUNDLE ${PUTT_SRC} ${PUTT_DATA} ${SHARE_DATA} apple/macos/neverputt.icns apple/macos/neverputt.entitlements)
+
+    set(MACOSX_BUNDLE_APP_CATEGORY "public.app-category.action-games")
+
+    set(VERSION_NAME "1.6.002")
+    target_compile_definitions(neverball PRIVATE VERSION=\"${VERSION_NAME}\")
+    target_compile_definitions(neverputt PRIVATE VERSION=\"${VERSION_NAME}\")
+
+    set(ENABLE_NLS OFF)
+
+    set_target_properties(neverball neverputt PROPERTIES
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_LIST_DIR}/cmake/template/MacOSXBundleInfo.plist.in"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "${VERSION_NAME}"
+        MACOSX_BUNDLE_BUNDLE_VERSION "2"
+        MACOSX_BUNDLE_COPYRIGHT "Copyright © 2020 Dmitry Rodin. All rights reserved."
+        XCODE_ATTRIBUTE_INSTALL_PATH "$(LOCAL_APPS_DIR)"
+        XCODE_ATTRIBUTE_SKIP_INSTALL "No"
+        XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "Mac Developer"
+        XCODE_ATTRIBUTE_DEVELOPMENT_TEAM "$ENV{CMAKE_XCODE_ATTRIBUTE_DEVELOPMENT_TEAM}"
+        XCODE_ATTRIBUTE_ENABLE_HARDENED_RUNTIME YES
+    )
+
+    set_target_properties(neverball PROPERTIES
+        OUTPUT_NAME "Neverball"
+        #MACOSX_BUNDLE_BUNDLE_NAME "Neverball"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "com.drodin.neverball"
+        MACOSX_BUNDLE_ICON_FILE "neverball"
+        XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS "apple/macos/neverball.entitlements"
+    )
+
+    set_target_properties(neverputt PROPERTIES
+        OUTPUT_NAME "Neverputt"
+        #MACOSX_BUNDLE_BUNDLE_NAME "Neverputt"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "com.drodin.neverputt"
+        MACOSX_BUNDLE_ICON_FILE "neverputt"
+        XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS "apple/macos/neverputt.entitlements"
+    )
+
+    set_source_files_properties(${SHARE_DATA} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/data")
+    set_source_files_properties(${BALL_DATA} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/data")
+    set_source_files_properties(${PUTT_DATA} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/data")
+    set_source_files_properties(apple/macos/neverball.icns PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
+    set_source_files_properties(apple/macos/neverputt.icns PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
+else()
+    add_executable(neverball ${BALL_SRC})
+    add_executable(neverputt ${PUTT_SRC})
 endif()
 
 set_property(GLOBAL PROPERTY C_STANDARD 99)
@@ -274,6 +324,8 @@ include_directories(
 )
 
 if(NOT ANDROID)
+    add_executable(mapc ${MAPC_SRC})
+
     target_link_libraries(mapc
         SDL2::SDL2
         JPEG::jpeg

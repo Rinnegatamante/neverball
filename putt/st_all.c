@@ -232,7 +232,7 @@ static int title_enter(struct state *st, struct state *prev)
             {
                 gui_start(kd, gt_prefix("menu^Play"),    GUI_MED, TITLE_PLAY, 1);
                 gui_state(kd, gt_prefix("menu^Options"), GUI_MED, TITLE_CONF, 0);
-#ifdef __MOBILE__
+#if defined(__MOBILE__) || defined (__APPLE__)
                 gui_state(kd, gt_prefix("menu^Help"),    GUI_MED, TITLE_HELP, 0);
 #endif
 #ifndef __MOBILE__

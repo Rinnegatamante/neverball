@@ -178,7 +178,7 @@ static int page_rules(int id)
 
         gui_filler(jd);
     }
-#ifdef __MOBILE__
+#if defined(__MOBILE__) || defined(__APPLE__)
         gui_space(id);
         gui_multi(id, "This game is distributed under the GPLv2 license.\\"
                       "For source code, visit drodin.com/neverball", GUI_SML, gui_yel, gui_wht);
