@@ -195,6 +195,7 @@ static void shared_stick(int id, int a, float v, int bump)
 #define TITLE_PLAY 1
 #define TITLE_CONF 2
 #define TITLE_EXIT 3
+#define TITLE_HELP 4
 
 static int title_action(int i)
 {
@@ -204,6 +205,7 @@ static int title_action(int i)
     {
     case TITLE_PLAY: return goto_state(&st_course);
     case TITLE_CONF: return goto_state(&st_conf);
+    case TITLE_HELP: return goto_state(&st_help);
 #ifndef __MOBILE__
     case TITLE_EXIT: return 0;
 #endif
@@ -230,6 +232,9 @@ static int title_enter(struct state *st, struct state *prev)
             {
                 gui_start(kd, gt_prefix("menu^Play"),    GUI_MED, TITLE_PLAY, 1);
                 gui_state(kd, gt_prefix("menu^Options"), GUI_MED, TITLE_CONF, 0);
+#ifdef __MOBILE__
+                gui_state(kd, gt_prefix("menu^Help"),    GUI_MED, TITLE_HELP, 0);
+#endif
 #ifndef __MOBILE__
                 gui_state(kd, gt_prefix("menu^Exit"),    GUI_MED, TITLE_EXIT, 0);
 #endif
@@ -470,6 +475,81 @@ static int course_buttn(int b, int d)
             return course_action(gui_token(gui_active()));
         if (config_tst_d(CONFIG_JOYSTICK_BUTTON_B, b))
             return course_action(COURSE_BACK);
+    }
+    return 1;
+}
+
+/* -------------------------------------------------------------------------- */
+
+static int help_action(int tok)
+{
+    audio_play(AUD_MENU, 1.0f);
+
+    switch (tok)
+    {
+        case GUI_BACK:
+            return goto_state(&st_title);
+    }
+    return 1;
+}
+
+static int help_enter(struct state *st, struct state *prev)
+{
+    int id;
+
+    if ((id = gui_vstack(0)))
+    {
+        gui_label(id, "Privacy policy:", GUI_MED, 0, 0);
+        gui_multi(id, "We don't collect any personal data from our apps.", GUI_SML, gui_yel, gui_wht);
+        gui_space(id);
+
+        gui_label(id, "License:", GUI_MED, 0, 0);
+        gui_multi(id, "This game is distributed under the GPLv2 license.\\"
+                  "For source code, visit drodin.com/neverputt", GUI_SML, gui_yel, gui_wht);
+        gui_space(id);
+
+        gui_state(id, _("Back"), GUI_SML, GUI_BACK, 0);
+
+        gui_layout(id, 0, 0);
+    }
+
+    return id;
+}
+
+static void help_leave(struct state *st, struct state *next, int id)
+{
+    gui_delete(id);
+}
+
+static void help_paint(int id, float t)
+{
+    game_draw(0, t);
+    gui_paint(id);
+}
+
+static void help_timer(int id, float dt)
+{
+    gui_timer(id, dt);
+}
+
+static void help_point(int id, int x, int y, int dx, int dy)
+{
+    gui_pulse(gui_point(id, x, y), 1.2f);
+}
+
+static int help_click(int b, int d)
+{
+    return gui_click(b, d) ? help_action(gui_token(gui_active())) : 1;
+}
+
+static int help_buttn(int b, int d)
+{
+    if (d)
+    {
+        if (config_tst_d(CONFIG_JOYSTICK_BUTTON_A, b))
+            return help_action(gui_token(gui_active()));
+        if (config_tst_d(CONFIG_JOYSTICK_BUTTON_B, b))
+            return help_action(GUI_BACK);
     }
     return 1;
 }
@@ -1445,6 +1525,19 @@ struct state st_course = {
     course_click,
     NULL,
     course_buttn
+};
+
+struct state st_help = {
+    help_enter,
+    help_leave,
+    help_paint,
+    help_timer,
+    help_point,
+    shared_stick,
+    NULL,
+    help_click,
+    NULL,
+    help_buttn
 };
 
 struct state st_party = {

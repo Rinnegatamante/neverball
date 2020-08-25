@@ -180,8 +180,8 @@ static int page_rules(int id)
     }
 #ifdef __MOBILE__
         gui_space(id);
-        gui_multi(id, "This game is distributed under the GPL license.\\"
-                      "For source code, visit neverball.drodin.com", GUI_SML, gui_yel, gui_wht);
+        gui_multi(id, "This game is distributed under the GPLv2 license.\\"
+                      "For source code, visit drodin.com/neverball", GUI_SML, gui_yel, gui_wht);
 #endif
     return id;
 }
