@@ -24,8 +24,9 @@ set(ENABLE_FS "stdio"      CACHE STRING "File system")
 
 include("cmake/HunterGate.cmake")
 HunterGate(
-    URL "https://github.com/cpp-pm/hunter/archive/v0.23.251.tar.gz"
-    SHA1 "5659b15dc0884d4b03dbd95710e6a1fa0fc3258d"
+    URL "https://github.com/drodin/hunter/archive/19433c0.tar.gz"
+    SHA1 "e039c81665aef2bd3536b026612a7c7b756b5daa"
+    LOCAL
 )
 
 project(neverball)
@@ -283,7 +284,6 @@ endif()
 set(LIBS
     ${OPENGL_LIBRARIES}
     ${Intl_LIBRARIES}
-    SDL2::SDL2main
     SDL2::SDL2
     SDL_ttf::SDL_ttf
     JPEG::jpeg
