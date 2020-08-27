@@ -143,7 +143,11 @@ static struct
     { &CONFIG_BACKGROUND,   "background",   1 },
     { &CONFIG_SHADOW,       "shadow",       1 },
     { &CONFIG_AUDIO_BUFF,   "audio_buff",   AUDIO_BUFF_HI },
+#if defined(__MOBILE__) && defined(__APPLE__)
+    { &CONFIG_MOUSE_SENSE,  "mouse_sense",  400 },
+#else
     { &CONFIG_MOUSE_SENSE,  "mouse_sense",  300 },
+#endif
     { &CONFIG_MOUSE_RESPONSE, "mouse_response", 50 },
     { &CONFIG_MOUSE_INVERT, "mouse_invert", 0 },
     { &CONFIG_VSYNC,        "vsync",        1 },
@@ -415,6 +419,11 @@ void config_load(void)
     }
 
 #ifdef __MOBILE__
+#ifdef __APPLE__
+    config_set_d(CONFIG_JOYSTICK_AXIS_X0, 1);
+    config_set_d(CONFIG_JOYSTICK_AXIS_Y0, 0);
+    config_set_d(CONFIG_JOYSTICK_AXIS_X0_INVERT, 1);
+#endif
     config_set_d(CONFIG_JOYSTICK_AXIS_X1, 2);
     config_set_d(CONFIG_JOYSTICK_AXIS_Y1, 3);
     config_set_d(CONFIG_JOYSTICK_AXIS_X1_INVERT, 1);

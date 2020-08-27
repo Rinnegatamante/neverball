@@ -119,11 +119,18 @@ static int page_rules(int id)
         "tilt the floor causing the\\"
         "ball to roll.\\");
 #else
+#ifdef __APPLE__
+    const char *s0 = _(
+       "Lean the device up/down and\\"
+       "left/right to tilt the floor\\"
+       "causing the ball to roll.\\");
+#else
     const char *s0 = _(
         "Lean the device up/down and\\"
         "left/right or use gamepad to\\"
         "tilt the floor causing the\\"
         "ball to roll.\\");
+#endif
 #endif
     const char *s1 = _(
         "Roll over coins to collect\\"
@@ -192,10 +199,17 @@ static int page_controls(int id)
     const char *s_rotate  = _("Left and right mouse buttons rotate the view.\\"
                               "Hold Shift for faster view rotation.");
 #else
+#ifdef __APPLE__
+    const char *s_rotate  = _("Touch left/right side of the screen to rotate\\"
+                              "the view.\\"
+                              "\\"
+                              "Tap center of the screen to toggle camera.");
+#else
     const char *s_rotate  = _("Touch left/right side of the screen or use\\"
                               "Gamepad 2nd analog stick to rotate the view.\\"
                               "\\"
                               "Tap center of the screen to toggle camera.");
+#endif
 #endif
     const char *s_exit    = _("Exit / Pause");
     const char *s_camera1 = _("Chase Camera");
@@ -224,6 +238,7 @@ static int page_controls(int id)
     {
         if ((kd = gui_harray(jd)))
         {
+#if !(defined(__APPLE__) && defined(__MOBILE__))
             gui_label(kd, s_exit,   GUI_SML, gui_wht, gui_wht);
 #ifndef __MOBILE__
             gui_label(kd, SDL_GetKeyName(k_exit), GUI_SML, gui_yel, gui_yel);
@@ -232,6 +247,7 @@ static int page_controls(int id)
             gui_label(kd, "Swipe Back / Start Btn.", GUI_SML, gui_yel, gui_yel);
 #else
             gui_label(kd, "Back Key / Start Btn.", GUI_SML, gui_yel, gui_yel);
+#endif
 #endif
 #endif
         }

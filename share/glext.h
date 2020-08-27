@@ -25,7 +25,11 @@
 
 #if ENABLE_OPENGLES
 
+#ifdef __APPLE__
+#include <OpenGLES/ES1/gl.h>
+#else
 #include <GLES/gl.h>
+#endif
 
 #else  /* ENABLE_OPENGLES */
 

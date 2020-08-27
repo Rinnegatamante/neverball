@@ -36,6 +36,10 @@ static const char *pick_data_path(const char *arg_data_path)
 {
     static char dir[MAXSTR];
 #ifdef __APPLE__
+#ifdef __MOBILE__
+    SAFECPY(dir, "data");
+    return dir;
+#endif
     CFURLRef appUrlRef = CFBundleCopyBundleURL(CFBundleGetMainBundle());
     CFStringRef macPath = CFURLCopyFileSystemPath(appUrlRef, kCFURLPOSIXPathStyle);
     const char *data_dir = CFStringGetCStringPtr(macPath, CFStringGetSystemEncoding());

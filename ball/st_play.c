@@ -436,9 +436,9 @@ static void play_loop_point(int id, int x, int y, int dx, int dy)
     if (hud_mobile_point(x, y))
         return;
 
-    if (x < config_get_d(CONFIG_WIDTH)/3)
+    if (x < video.device_w / 3)
         rot_dir = DIR_R;
-    else if (x > config_get_d(CONFIG_WIDTH)/3 && x < config_get_d(CONFIG_WIDTH)/3 * 2)
+    else if (x > video.device_w / 3 && x < video.device_w / 3 * 2)
         pending_camera_change = 1;
     else
         rot_dir = DIR_L;

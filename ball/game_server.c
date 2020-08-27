@@ -880,6 +880,9 @@ void game_set_goal(void)
 void game_set_x(float k)
 {
 #ifdef __MOBILE__
+#ifdef __APPLE__
+    k = k * 5.0f;
+#endif
     if (SDL_NumJoysticks() < 2)
         k = (k - 0.5f) * 1000.0f / (float) config_get_d(CONFIG_MOUSE_SENSE);
 #endif
@@ -891,6 +894,9 @@ void game_set_x(float k)
 void game_set_z(float k)
 {
 #ifdef __MOBILE__
+#ifdef __APPLE__
+    k = k * 5.0f;
+#endif
     if (SDL_NumJoysticks() < 2)
         k = k * 1000.0f / (float) config_get_d(CONFIG_MOUSE_SENSE);
 #endif
