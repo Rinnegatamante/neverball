@@ -219,6 +219,9 @@ static void conf_leave(struct state *st, struct state *next, int id)
 
 static int null_enter(struct state *st, struct state *prev)
 {
+#ifdef __MOBILE__
+    hud_mobile_free();
+#endif
     hud_free();
     gui_free();
     geom_free();
@@ -239,6 +242,9 @@ static void null_leave(struct state *st, struct state *next, int id)
     geom_init();
     gui_init();
     hud_init();
+#ifdef __MOBILE__
+    hud_mobile_init();
+#endif
 }
 
 /*---------------------------------------------------------------------------*/

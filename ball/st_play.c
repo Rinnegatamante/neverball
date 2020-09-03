@@ -361,6 +361,9 @@ static void play_loop_paint(int id, float t)
 {
     game_client_draw(0, t);
 
+#ifdef __MOBILE__
+    hud_mobile_paint();
+#endif
     if (show_hud)
         hud_paint();
 
@@ -430,6 +433,9 @@ static void play_loop_timer(int id, float dt)
 static void play_loop_point(int id, int x, int y, int dx, int dy)
 {
 #ifdef __MOBILE__
+    if (hud_mobile_point(x, y))
+        return;
+
     if (x < config_get_d(CONFIG_WIDTH)/3)
         rot_dir = DIR_R;
     else if (x > config_get_d(CONFIG_WIDTH)/3 && x < config_get_d(CONFIG_WIDTH)/3 * 2)
@@ -464,6 +470,13 @@ static void play_loop_stick(int id, int a, float v, int bump)
 
 static int play_loop_click(int b, int d)
 {
+#ifdef __MOBILE__
+    if (hud_mobile_click())
+    {
+        goto_state(&st_pause);
+        return 1;
+    }
+#endif
     if (d)
     {
 #ifndef __MOBILE__

@@ -18,6 +18,16 @@ void hud_speed_pulse(int);
 void hud_speed_timer(float);
 void hud_speed_paint();
 
+#ifdef __MOBILE__
+void hud_mobile_init(void);
+void hud_mobile_free(void);
+
+void hud_mobile_paint(void);
+
+int hud_mobile_point(int x, int y);
+int hud_mobile_click(void);
+#endif
+
 /*---------------------------------------------------------------------------*/
 
 #endif

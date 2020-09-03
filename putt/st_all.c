@@ -1017,18 +1017,8 @@ static int stroke_enter(struct state *st, struct state *prev)
     int id = 0;
 
 #ifdef __MOBILE__
-    if ((id = gui_vstack(0)))
-    {
-        gui_state(id, _("   S   "), GUI_SML, -1, 0);
-        gui_state(id, _("   W   "), GUI_SML, -2, 0);
-        gui_state(id, _("   I   "), GUI_SML, -3, 0);
-        gui_state(id, _("   N   "), GUI_SML, -4, 0);
-        gui_state(id, _("   G   "), GUI_SML, -5, 0);
-        gui_set_rect(id, GUI_RGT);
-        gui_layout(id, -1, 0);
-    }
+    hud_mobile_init();
 #endif
-
     hud_init();
     game_clr_mag();
     config_set_d(CONFIG_CAMERA, 2);
@@ -1043,7 +1033,7 @@ static int stroke_enter(struct state *st, struct state *prev)
 static void stroke_leave(struct state *st, struct state *next, int id)
 {
 #ifdef __MOBILE__
-    gui_delete(id);
+    hud_mobile_free();
 #endif
     hud_free();
     video_clr_grab();
@@ -1056,7 +1046,7 @@ static void stroke_paint(int id, float t)
 {
     game_draw(0, t);
 #ifdef __MOBILE__
-    gui_paint(id);
+    hud_mobile_paint();
 #endif
     hud_paint();
 }
@@ -1082,11 +1072,10 @@ static void stroke_timer(int id, float dt)
 static void stroke_point(int id, int x, int y, int dx, int dy)
 {
 #ifdef __MOBILE__
-    gui_pulse(gui_point(id, x, y), 1.2f);
-    game_set_rot(-dx);
-#else
-    game_set_rot(dx);
+    hud_mobile_point(x, y);
+    dx = -dx;
 #endif
+    game_set_rot(dx);
     game_set_mag(dy);
 }
 
@@ -1105,11 +1094,9 @@ static void stroke_stick(int id, int a, float v, int bump)
 static int stroke_click(int b, int d)
 {
 #ifdef __MOBILE__
-    int id = gui_token(gui_active());
-    gui_focus(0);
-
-    if (id >= 0)
-        return 1;
+    b = hud_mobile_click();
+    if (d && b == SDL_BUTTON_RIGHT)
+        return goto_pause(&st_over);
 #endif
     return (d && b == SDL_BUTTON_LEFT) ? goto_state(&st_roll) : 1;
 }

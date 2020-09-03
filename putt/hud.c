@@ -82,3 +82,72 @@ void hud_paint(void)
 }
 
 /*---------------------------------------------------------------------------*/
+
+#ifdef __MOBILE__
+
+static int swing_id;
+static int pause_id;
+
+/*---------------------------------------------------------------------------*/
+
+void hud_mobile_init(void)
+{
+    if ((swing_id = gui_vstack(0)))
+    {
+        gui_state(swing_id, "   S   ", GUI_SML, -1, 0);
+        gui_state(swing_id, "   W   ", GUI_SML, -1, 0);
+        gui_state(swing_id, "   I   ", GUI_SML, -1, 0);
+        gui_state(swing_id, "   N   ", GUI_SML, -1, 0);
+        gui_state(swing_id, "   G   ", GUI_SML, -1, 0);
+        gui_set_rect(swing_id, GUI_RGT);
+        gui_layout(swing_id, -1, 0);
+    }
+
+    if ((pause_id = gui_vstack(0)))
+    {
+        gui_state(pause_id, "  Pause   ", GUI_SML, -2, 0);
+        gui_set_rect(pause_id, GUI_SE);
+        gui_layout(pause_id, -1, +1);
+    }
+}
+
+void hud_mobile_free(void)
+{
+    gui_delete(swing_id);
+    gui_delete(pause_id);
+}
+
+/*---------------------------------------------------------------------------*/
+
+void hud_mobile_paint(void)
+{
+    gui_paint(swing_id);
+    gui_paint(pause_id);
+}
+
+/*---------------------------------------------------------------------------*/
+
+void hud_mobile_point(int x, int y)
+{
+    gui_point(swing_id, x, y);
+    gui_point(pause_id, x, y);
+}
+
+/*---------------------------------------------------------------------------*/
+
+int hud_mobile_click(void)
+{
+    int id = gui_token(gui_active());
+    gui_focus(0);
+
+    if (id == -1)
+        return SDL_BUTTON_LEFT;
+    else if (id == -2)
+        return SDL_BUTTON_RIGHT;
+    else
+        return 0;
+}
+
+/*---------------------------------------------------------------------------*/
+
+#endif /* __MOBILE__ */

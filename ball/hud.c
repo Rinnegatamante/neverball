@@ -332,3 +332,54 @@ void hud_speed_paint(void)
 }
 
 /*---------------------------------------------------------------------------*/
+
+#ifdef __MOBILE__
+
+static int pause_id;
+
+/*---------------------------------------------------------------------------*/
+
+void hud_mobile_init(void)
+{
+    if ((pause_id = gui_vstack(0)))
+    {
+        gui_state(pause_id, "  Pause  ", GUI_SML, -2, 0);
+        gui_set_rect(pause_id, GUI_SE);
+        gui_layout(pause_id, -1, +1);
+    }
+}
+
+void hud_mobile_free(void)
+{
+    gui_delete(pause_id);
+}
+
+/*---------------------------------------------------------------------------*/
+
+void hud_mobile_paint(void)
+{
+    gui_paint(pause_id);
+}
+
+/*---------------------------------------------------------------------------*/
+
+int hud_mobile_point(int x, int y)
+{
+    int id = gui_point(pause_id, x, y);
+    //gui_pulse(id, 1.2f);
+    return id;
+}
+
+/*---------------------------------------------------------------------------*/
+
+int hud_mobile_click(void)
+{
+    int id = gui_token(gui_active());
+    gui_focus(0);
+
+    return (id == -2);
+}
+
+/*---------------------------------------------------------------------------*/
+
+#endif /* __MOBILE__ */

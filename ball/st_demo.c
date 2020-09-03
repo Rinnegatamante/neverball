@@ -477,6 +477,9 @@ static void demo_play_paint(int id, float t)
 {
     game_client_draw(0, t);
 
+#ifdef __MOBILE__
+    hud_mobile_paint();
+#endif
     if (show_hud)
         hud_paint();
 
@@ -505,6 +508,25 @@ static void demo_play_timer(int id, float dt)
         progress_step();
         game_client_blend(demo_replay_blend());
     }
+}
+
+static void demo_play_point(int id, int x, int y, int dx, int dy)
+{
+#ifdef __MOBILE__
+    hud_mobile_point(x, y);
+#endif
+}
+
+static int demo_play_click(int b, int d)
+{
+#ifdef __MOBILE__
+    if (hud_mobile_click())
+    {
+        demo_paused = 1;
+        goto_state(&st_demo_end);
+    }
+#endif
+    return 1;
 }
 
 static void set_speed(int d)
@@ -840,10 +862,10 @@ struct state st_demo_play = {
     demo_play_leave,
     demo_play_paint,
     demo_play_timer,
-    NULL,
+    demo_play_point,
     demo_play_stick,
     NULL,
-    NULL,
+    demo_play_click,
     demo_play_keybd,
     demo_play_buttn,
     demo_play_wheel
