@@ -1,17 +1,9 @@
-if(ANDROID)
+#fix SDL2 hidapi/android/hid.cpp linking error
+if(ANDROID AND NOT ${CMAKE_ANDROID_ARCH_ABI} STREQUAL "arm64-v8a")
 hunter_config(
     SDL2
-    VERSION 2.0.7-p3
-)
-elseif(APPLE AND NOT IOS)
-hunter_config(
-    SDL2
-    VERSION 2.0.12-p0
-)
-elseif(IOS)
-hunter_config(
-    SDL2
-    VERSION 2.0.12-p0
-    CMAKE_ARGS "HIDAPI=NO"
+    VERSION 2.0.18
+    CMAKE_ARGS
+        CMAKE_CXX_FLAGS=-fPIC
 )
 endif()

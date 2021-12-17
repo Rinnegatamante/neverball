@@ -24,8 +24,8 @@ set(ENABLE_FS "stdio"      CACHE STRING "File system")
 
 include("cmake/HunterGate.cmake")
 HunterGate(
-    URL "https://github.com/drodin/hunter/archive/19433c0.tar.gz"
-    SHA1 "e039c81665aef2bd3536b026612a7c7b756b5daa"
+    URL "https://github.com/drodin/hunter/archive/refs/heads/pr.sdl.zip"
+    SHA1 "4026a6abe8db1c55e2e1cd3d8f677102d88a6be1"
     LOCAL
 )
 
@@ -375,6 +375,7 @@ set(LIBS
     ${OPENGL_LIBRARIES}
     ${Intl_LIBRARIES}
     SDL2::SDL2
+    SDL2::SDL2main
     SDL_ttf::SDL_ttf
     JPEG::jpeg
     vorbis::vorbisfile
