@@ -263,7 +263,7 @@ else()
 
     set_target_properties(neverball neverputt PROPERTIES
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_LIST_DIR}/cmake/template/MacOSXBundleInfo.plist.in"
-        MACOSX_BUNDLE_COPYRIGHT "Copyright © 2020 Dmitry Rodin. All rights reserved."
+        MACOSX_BUNDLE_COPYRIGHT "Copyright © 2022 Dmitry Rodin. All rights reserved."
         XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "Mac Developer"
         XCODE_ATTRIBUTE_ENABLE_HARDENED_RUNTIME YES
     )
@@ -285,24 +285,24 @@ else()
 endif()
     set(ENABLE_NLS OFF)
 
-    set(VERSION_NAME "1.6.002")
+    set(VERSION_NAME "1.6.003")
     target_compile_definitions(neverball PRIVATE VERSION=\"${VERSION_NAME}\")
     target_compile_definitions(neverputt PRIVATE VERSION=\"${VERSION_NAME}\")
 
     set_target_properties(neverball neverputt PROPERTIES
         MACOSX_BUNDLE_SHORT_VERSION_STRING "${VERSION_NAME}"
-        MACOSX_BUNDLE_BUNDLE_VERSION "2"
+        MACOSX_BUNDLE_BUNDLE_VERSION "3"
         XCODE_ATTRIBUTE_INSTALL_PATH "$(LOCAL_APPS_DIR)"
         XCODE_ATTRIBUTE_SKIP_INSTALL "No"
         XCODE_ATTRIBUTE_DEVELOPMENT_TEAM "$ENV{CMAKE_XCODE_ATTRIBUTE_DEVELOPMENT_TEAM}"
     )
 
     set_target_properties(neverball PROPERTIES
-        MACOSX_BUNDLE_GUI_IDENTIFIER "com.drodin.neverball"
+        XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "com.drodin.neverball"
     )
 
     set_target_properties(neverputt PROPERTIES
-        MACOSX_BUNDLE_GUI_IDENTIFIER "com.drodin.neverputt"
+        XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "com.drodin.neverputt"
     )
 
     set_source_files_properties(${SHARE_DATA} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/data")
