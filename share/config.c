@@ -419,14 +419,14 @@ void config_load(void)
     }
 
 #ifdef __MOBILE__
-#ifdef __APPLE__
-    config_set_d(CONFIG_JOYSTICK_AXIS_X0, 1);
-    config_set_d(CONFIG_JOYSTICK_AXIS_Y0, 0);
-    config_set_d(CONFIG_JOYSTICK_AXIS_X0_INVERT, 1);
-#endif
+    config_set_d(CONFIG_JOYSTICK_AXIS_X0, 0);
+    config_set_d(CONFIG_JOYSTICK_AXIS_Y0, 1);
     config_set_d(CONFIG_JOYSTICK_AXIS_X1, 2);
     config_set_d(CONFIG_JOYSTICK_AXIS_Y1, 3);
+    config_set_d(CONFIG_JOYSTICK_AXIS_X0_INVERT, 0);
+    config_set_d(CONFIG_JOYSTICK_AXIS_Y0_INVERT, 0);
     config_set_d(CONFIG_JOYSTICK_AXIS_X1_INVERT, 1);
+    config_set_d(CONFIG_JOYSTICK_AXIS_Y1_INVERT, 0);
 #endif
 
 #ifdef __BLACKBERRY__

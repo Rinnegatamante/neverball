@@ -99,8 +99,8 @@ void hud_mobile_init(void)
         gui_state(swing_id, "   I   ", GUI_SML, -1, 0);
         gui_state(swing_id, "   N   ", GUI_SML, -1, 0);
         gui_state(swing_id, "   G   ", GUI_SML, -1, 0);
-        gui_set_rect(swing_id, GUI_RGT);
-        gui_layout(swing_id, -1, 0);
+        gui_set_rect(swing_id, GUI_LFT);
+        gui_layout(swing_id, 1, 0);
     }
 
     if ((pause_id = gui_vstack(0)))
