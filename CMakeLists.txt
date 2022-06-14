@@ -24,8 +24,8 @@ set(ENABLE_FS "stdio"      CACHE STRING "File system")
 
 include("cmake/HunterGate.cmake")
 HunterGate(
-    URL "https://github.com/drodin/hunter/archive/refs/heads/pr.sdl.zip"
-    SHA1 "4026a6abe8db1c55e2e1cd3d8f677102d88a6be1"
+    URL "https://github.com/drodin/hunter/archive/refs/heads/pr.sdl_master.zip"
+    SHA1 "174ff12548667689f4f4d18db3fa1c152552fa3e"
     LOCAL
 )
 
