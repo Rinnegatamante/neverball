@@ -208,7 +208,7 @@ void conf_common_leave(struct state *st, struct state *next, int id)
     back_free();
 
     gui_delete(id);
-#ifdef __MOBILE__
+#if defined(__MOBILE__) || defined(__vita__)
     config_save();
 #endif
 }

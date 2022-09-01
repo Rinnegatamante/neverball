@@ -140,6 +140,10 @@ int video_init(void)
 
 int video_mode(int f, int w, int h)
 {
+#ifdef __vita__
+	w = 960;
+	h = 544;
+#endif
     int stereo  = config_get_d(CONFIG_STEREO)      ? 1 : 0;
     int stencil = config_get_d(CONFIG_REFLECTION)  ? 1 : 0;
     int buffers = config_get_d(CONFIG_MULTISAMPLE) ? 1 : 0;

@@ -17,7 +17,9 @@
 
 #include "log.h"
 #include "common.h"
+#ifndef __vita__
 #include "version.h"
+#endif
 #include "fs.h"
 
 static char    log_header[MAXSTR];
@@ -76,7 +78,11 @@ void log_init(const char *name, const char *path)
 
             sprintf(log_header, "%s - %s %s",
                     date_to_str(time(NULL)),
+#ifndef __vita__
                     name, VERSION);
+#else
+                    name, "1.0");	
+#endif
         }
         else
         {

@@ -24,6 +24,14 @@
 #include "list.h"
 #include "common.h"
 
+#ifndef NEVERPUTT
+#define GAME_DIR "ux0:data/Neverball-dev"
+#define DATA_DIR "ux0:data/Neverball-dev/data"
+#else
+#define GAME_DIR "ux0:data/Neverputt-dev"
+#define DATA_DIR "ux0:data/Neverputt-dev/data"
+#endif
+
 #ifdef ANDROID
 #include "config.h"
 #include <jni.h>
@@ -66,7 +74,11 @@ int fs_init(const char *argv0)
 
 	fs_dir_base = (char*) SDL_AndroidGetInternalStoragePath();
 #else
+#ifdef __vita__
+	fs_dir_base  = strdup(GAME_DIR);
+#else
     fs_dir_base  = strdup(argv0 && *argv0 ? dir_name(argv0) : ".");
+#endif
 #endif
     fs_dir_write = NULL;
     fs_path      = NULL;
@@ -223,7 +235,6 @@ Array fs_dir_scan(const char *path, int (*filter)(struct dir_item *))
 #ifdef ANDROID
     fs_android_asset(path);
 #endif
-
     return dir_scan(path, filter, list_files, free_files);
 }
 
@@ -236,6 +247,21 @@ void fs_dir_free(Array items)
 
 static char *real_path(const char *path)
 {
+#ifdef __vita__
+	char r[256];
+	sprintf(r, "%s/%s", DATA_DIR, path);
+	//printf("real_path: %s\n", r);
+	char *real = strdup(r);
+	if (!file_exists(real)) {
+		sprintf(real, "%s/%s", GAME_DIR, path);
+		//printf("real_path2: %s\n", real);
+		if (!file_exists(real)) {
+			free(real);
+			return NULL;
+		}
+	}   
+	return real;
+#else
     char *real = NULL;
     List p;
 
@@ -253,8 +279,9 @@ static char *real_path(const char *path)
         free(real);
         real = NULL;
     }
-
+	
     return real;
+#endif
 }
 
 /*---------------------------------------------------------------------------*/

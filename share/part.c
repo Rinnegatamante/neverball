@@ -252,17 +252,23 @@ void part_draw_coin(struct s_rend *rend)
         glVertexPointer(3, GL_FLOAT, sizeof (struct part_draw), coin_draw[0].p);
 #endif
 
+#ifndef __vita__
         glEnable(GL_POINT_SPRITE);
+#endif
         {
+#ifndef __vita__
             const GLfloat c[3] = { 0.0f, 0.0f, 1.0f };
 
             glTexEnvi(GL_POINT_SPRITE, GL_COORD_REPLACE, GL_TRUE);
             glPointParameterfv_(GL_POINT_DISTANCE_ATTENUATION, c);
+#endif
             glPointSize(height / 6);
 
             glDrawArrays(GL_POINTS, 0, PART_MAX_COIN);
         }
+#ifndef __vita__
         glDisable(GL_POINT_SPRITE);
+#endif
     }
     glDisableClientState(GL_COLOR_ARRAY);
     glEnableClientState(GL_NORMAL_ARRAY);

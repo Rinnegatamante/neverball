@@ -24,6 +24,104 @@
 #include <ctype.h>
 #include <stdarg.h>
 #include <assert.h>
+#include <dirent.h>
+
+#ifndef NEVERPUTT
+#define GAME_DIR "ux0:data/Neverball-dev"
+#define DATA_DIR "ux0:data/Neverball-dev/data"
+#else
+#define GAME_DIR "ux0:data/Neverputt-dev"
+#define DATA_DIR "ux0:data/Neverputt-dev/data"
+#endif
+
+#ifdef __vita__
+int newlib_heap_size_user = 256 * 1024 * 1024;
+FILE *__wrap_fopen(const char *fname, char *mode) {
+	if (!fname)
+		return NULL;
+	//printf("fopen %s\n", fname);
+	if (fname[0] == '.') {
+		char real_fname[256];
+		sprintf(real_fname, "%s%s", GAME_DIR, &fname[1]);
+		FILE *f = __real_fopen(real_fname, mode);
+		if (!f) {
+			sprintf(real_fname, "%s%s", DATA_DIR, &fname[1]);
+			f = __real_fopen(real_fname, mode);
+		}
+		//printf("real fopen %s\n", real_fname);
+		return f;
+	} else {
+		char *s = strstr(&fname[1], "ux0:");
+		if (s)
+			fname = s;
+	}
+	//printf("patched fopen %s\n", fname);
+	FILE *f = __real_fopen(fname, mode);
+	if (!f) {
+		char real_fname[256];
+		sprintf(real_fname, "%s%s", DATA_DIR, &fname[22]);
+		f = __real_fopen(real_fname, mode);
+		//printf("real fopen %s\n", real_fname);
+	}
+	return f;
+}
+
+DIR *__wrap_opendir(const char *fname) {
+	if (!fname)
+		return NULL;
+	//printf("opendir %s\n", fname);
+	if (fname[0] == '.') {
+		char real_fname[256];
+		sprintf(real_fname, "%s%s", GAME_DIR, &fname[1]);
+		DIR *f = __real_opendir(real_fname);
+		if (!f) {
+			sprintf(real_fname, "%s%s", DATA_DIR, &fname[1]);
+			f = __real_opendir(real_fname);
+		}
+		return f;
+	} else {
+		char *s = strstr(&fname[1], "ux0:");
+		if (s)
+			fname = s;
+	}
+	//printf("patched opendir %s\n", fname);
+	return __real_opendir(fname);
+}
+
+int __wrap_mkdir(const char *fname, mode_t mode) {
+	if (!fname)
+		return NULL;
+	//printf("mkdir %s\n", fname);
+	if (fname[0] == '.') {
+		char real_fname[256];
+		sprintf(real_fname, "%s%s", GAME_DIR, &fname[1]);
+		return __real_mkdir(real_fname, mode);
+	} else {
+		char *s = strstr(&fname[1], "ux0:");
+		if (s)
+			fname = s;
+	}
+	//printf("patched mkdir %s\n", fname);
+	return __real_mkdir(fname, mode);
+}
+
+int __wrap_remove(const char *fname) {
+	if (!fname)
+		return NULL;
+	//printf("remove %s\n", fname);
+	if (fname[0] == '.') {
+		char real_fname[256];
+		sprintf(real_fname, "%s%s", GAME_DIR, &fname[1]);
+		return __real_remove(real_fname);
+	} else {
+		char *s = strstr(&fname[1], "ux0:");
+		if (s)
+			fname = s;
+	}
+	//printf("patched remove %s\n", fname);
+	return __real_remove(fname);
+}
+#endif
 
 /*
  * No platform checking, relying on MinGW to provide.

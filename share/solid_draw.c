@@ -882,9 +882,10 @@ void r_apply_mtrl(struct s_rend *rend, int mi)
         glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR,  mp->base.s);
     if (mp->e != mq->e)
         glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION,  mp->base.e);
+#ifndef __vita__
     if (mp->h != mq->h)
         glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, mp->base.h);
-
+#endif
     /* Ball shadow. */
 
     if ((mp_flags & M_SHADOWED) ^ (mq_flags & M_SHADOWED))
@@ -939,12 +940,16 @@ void r_apply_mtrl(struct s_rend *rend, int mi)
         if (mp_flags & M_TWO_SIDED)
         {
             glDisable(GL_CULL_FACE);
+#ifndef __vita__
             glLightModelf(GL_LIGHT_MODEL_TWO_SIDE, 1);
+#endif
         }
         else
         {
             glEnable(GL_CULL_FACE);
+#ifndef __vita__
             glLightModelf(GL_LIGHT_MODEL_TWO_SIDE, 0);
+#endif
         }
     }
 
@@ -989,6 +994,7 @@ void r_apply_mtrl(struct s_rend *rend, int mi)
 
     if ((mp_flags & M_PARTICLE) ^ (mq_flags & M_PARTICLE))
     {
+#ifndef __vita__
         if (mp_flags & M_PARTICLE)
         {
             const int s = video.device_h / 4;
@@ -1004,6 +1010,7 @@ void r_apply_mtrl(struct s_rend *rend, int mi)
         {
             glDisable(GL_POINT_SPRITE);
         }
+#endif
     }
 
     /* Lighting. */

@@ -134,6 +134,12 @@ void joy_axis(int instance, int a, float v)
     if (joy_curr == instance)
     {
         /* Process axis events from current joystick only. */
+#ifdef __vita__
+		if (a == 2)
+			a = 3;
+		else if (a == 3)
+			return;
+#endif
         st_stick(a, v);
     }
 }

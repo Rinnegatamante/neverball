@@ -107,7 +107,9 @@ void text_input_start(void (*cb)(int))
     if (SDL_NumJoysticks() > 1)
         return;
 #endif
+#ifndef __vita__
     SDL_StartTextInput();
+#endif
 }
 
 void text_input_stop(void)
@@ -117,7 +119,9 @@ void text_input_stop(void)
     if (SDL_NumJoysticks() > 1)
         return;
 #endif
+#ifndef __vita__
     SDL_StopTextInput();
+#endif
 }
 
 int text_input_str(const char *input, int typing)

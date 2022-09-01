@@ -27,6 +27,8 @@
 
 #ifdef __APPLE__
 #include <OpenGLES/ES1/gl.h>
+#elif defined(__vita__)
+#include <vitaGL.h>
 #else
 #include <GLES/gl.h>
 #endif

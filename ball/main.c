@@ -18,7 +18,9 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifndef __vita__
 #include "version.h"
+#endif
 #include "glext.h"
 #include "config.h"
 #include "video.h"
@@ -43,7 +45,16 @@
 #include "st_level.h"
 #include "st_pause.h"
 
+#ifdef __vita__
+#include <vitasdk.h>
+#include <vitaGL.h>
+#endif
+
+#ifndef __vita__
 const char TITLE[] = "Neverball " VERSION;
+#else
+	const char TITLE[] = "Neverball";
+#endif
 const char ICON[] = "icon/neverball.png";
 
 /*---------------------------------------------------------------------------*/
@@ -530,9 +541,26 @@ static void make_dirs_and_migrate(void)
 
 /*---------------------------------------------------------------------------*/
 
+#ifdef __vita__
+char *vita_argv[2];
+#endif
+
 int main(int argc, char *argv[])
 {
     int t1, t0;
+
+#ifdef __vita__
+	//sceSysmoduleLoadModule(SCE_SYSMODULE_RAZOR_CAPTURE);
+
+	// We start vitaGL here in order to have MSAA and to be able to have same effect on both Neverball and Neverputt
+	printf("Starting vitaGL\n");
+	vglInitExtended(0, 960, 544, 8 * 1024 * 1024, SCE_GXM_MULTISAMPLE_4X);
+	
+	argc = 2;
+	vita_argv[0] = "";
+	vita_argv[1] = ".";
+	if (!fs_init(argc > 0 ? vita_argv[0] : NULL))
+#endif
 
     if (!fs_init(argc > 0 ? argv[0] : NULL))
     {
@@ -541,7 +569,11 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+#ifdef __vita__
+	opt_parse(argc, vita_argv);
+#else
     opt_parse(argc, argv);
+#endif
 
     config_paths(opt_data);
     log_init("Neverball", "neverball.log");

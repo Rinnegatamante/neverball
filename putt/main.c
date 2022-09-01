@@ -21,7 +21,9 @@
 #include <string.h>
 #include <locale.h>
 
+#ifndef __vita__
 #include "version.h"
+#endif
 #include "glext.h"
 #include "audio.h"
 #include "image.h"
@@ -40,7 +42,16 @@
 #include "st_conf.h"
 #include "st_all.h"
 
+#ifdef __vita__
+#include <vitasdk.h>
+#include <vitaGL.h>
+#endif
+
+#ifndef __vita__
 const char TITLE[] = "Neverputt " VERSION;
+#else
+const char TITLE[] = "Neverputt";
+#endif
 const char ICON[] = "icon/neverputt.png";
 
 /*---------------------------------------------------------------------------*/
@@ -291,6 +302,12 @@ static void opt_parse(int argc, char **argv)
 
 int main(int argc, char *argv[])
 {
+#ifdef __vita__
+	// We start vitaGL here in order to have MSAA and to be able to have same effect on both Neverball and Neverputt
+	printf("Starting vitaGL\n");
+	vglInitExtended(0, 960, 544, 8 * 1024 * 1024, SCE_GXM_MULTISAMPLE_4X);
+#endif
+
     int camera = 0;
 
     if (!fs_init(argc > 0 ? argv[0] : NULL))

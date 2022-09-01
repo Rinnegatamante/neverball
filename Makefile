@@ -25,6 +25,14 @@ ifeq ($(shell uname), Haiku)
 	PLATFORM := haiku
 endif
 
+ifeq ($(VITA),1)
+	PLATFORM := vita
+	PREFIX  = arm-vita-eabi
+	CC      = $(PREFIX)-gcc
+	CXX     = $(PREFIX)-g++
+	AR      = $(PREFIX)-gcc-ar
+endif
+
 #------------------------------------------------------------------------------
 # Paths (packagers might want to set DATADIR and LOCALEDIR)
 
@@ -34,6 +42,18 @@ LOCALEDIR := ./locale
 
 ifeq ($(PLATFORM),mingw)
 	USERDIR := Neverball
+endif
+
+ifeq ($(PLATFORM),vita)
+ifeq ($(NEVERPUTT),1)
+	USERDIR := ux0:data/Neverputt
+	DATADIR := ux0:data/Neverputt/data
+	LOCALEDIR := ux0:data/Neverputt/locale
+else
+	USERDIR := ux0:data/Neverball
+	DATADIR := ux0:data/Neverball/data
+	LOCALEDIR := ux0:data/Neverball/locale
+endif
 endif
 
 ifeq ($(PLATFORM),haiku)
@@ -57,6 +77,11 @@ else
 	CPPFLAGS := -DNDEBUG
 endif
 
+ifeq ($(PLATFORM),vita)
+	CFLAGS += -I$(VITASDK)/$(PREFIX)/include/SDL2 -Wl,-q,--wrap,fopen,--wrap,opendir,--wrap,mkdir,--wrap,remove
+	CXXFLAGS += -I$(VITASDK)/$(PREFIX)/include/SDL2
+endif
+
 #------------------------------------------------------------------------------
 # Mandatory flags
 
@@ -69,7 +94,11 @@ ifeq ($(ENABLE_TILT),wii)
 
 	ALL_CFLAGS := -Wall -Wshadow -std=c99 -pedantic -fms-extensions $(CFLAGS)
 else
+ifeq ($(PLATFORM), vita)
+	ALL_CFLAGS := -Wall -std=c99 -Wl,-q -fno-optimize-sibling-calls -fsigned-char -fno-short-enums $(CFLAGS)
+else
 	ALL_CFLAGS := -Wall -Wshadow -std=c99 -pedantic $(CFLAGS)
+endif
 endif
 
 ALL_CXXFLAGS := -fno-rtti -fno-exceptions $(CXXFLAGS)
@@ -85,6 +114,10 @@ ALL_CPPFLAGS += \
 	-DCONFIG_USER=\"$(USERDIR)\" \
 	-DCONFIG_DATA=\"$(DATADIR)\" \
 	-DCONFIG_LOCALE=\"$(LOCALEDIR)\"
+	
+ifeq ($(NEVERPUTT),1)
+	ALL_CPPFLAGS += -DNEVERPUTT
+endif
 
 ifeq ($(ENABLE_OPENGLES),1)
 	ALL_CPPFLAGS += -DENABLE_OPENGLES=1
@@ -140,8 +173,13 @@ ALL_CPPFLAGS += $(HMD_CPPFLAGS)
 #------------------------------------------------------------------------------
 # Libraries
 
+ifeq ($(PLATFORM),vita)
+SDL_LIBS := -lSDL2
+PNG_LIBS := -lpng
+else
 SDL_LIBS := $(shell sdl2-config --libs)
 PNG_LIBS := $(shell libpng-config --libs)
+endif
 
 ENABLE_FS := stdio
 ifeq ($(ENABLE_FS),stdio)
@@ -171,7 +209,11 @@ endif
 endif
 
 ifeq ($(ENABLE_OPENGLES),1)
+ifeq ($(PLATFORM),vita)
+	OGL_LIBS := -lvitaGL -lvitashark -lSceShaccCgExt -ltaihen_stub -lmathneon -lSceShaccCg_stub
+else
 	OGL_LIBS := -lGLESv1_CM
+endif
 else
 	OGL_LIBS := -lGL
 endif
@@ -200,7 +242,16 @@ ifeq ($(PLATFORM),haiku)
 	endif
 endif
 
-BASE_LIBS := -ljpeg $(PNG_LIBS) $(FS_LIBS) -lm
+ifeq ($(PLATFORM),vita)
+	BASE_LIBS := \
+		-lfreetype -lvorbisfile -lvorbis -logg -lSceGxm_stub -lSceAppMgr_stub -lSceDisplay_stub \
+		-ljpeg $(PNG_LIBS) $(FS_LIBS) -lzip -lz -lm -lSceTouch_stub -lSceCtrl_stub -lSceIme_stub \
+		-lSceHid_stub -lSceMotion_stub -lSceAudio_stub -lSceAudioIn_stub -lSceKernelDmacMgr_stub \
+		-lSceCommonDialog_stub -lSceSysmodule_stub
+		
+else
+	BASE_LIBS := -ljpeg $(PNG_LIBS) $(FS_LIBS) -lm
+endif
 
 ifeq ($(PLATFORM),darwin)
 	BASE_LIBS += $(patsubst %, -L%, $(wildcard /opt/local/lib \
@@ -227,6 +278,10 @@ endif
 
 ifeq ($(PLATFORM),mingw)
 X := .exe
+endif
+
+ifeq ($(PLATFORM),vita)
+X := .bin
 endif
 
 MAPC_TARG := mapc$(X)
@@ -432,6 +487,13 @@ WINDRES ?= windres
 
 #------------------------------------------------------------------------------
 
+ifeq ($(PLATFORM),vita)
+%.o : %.c
+	$(CC) $(ALL_CFLAGS) $(ALL_CPPFLAGS) -o $@ -c $<
+
+%.o : %.cpp
+	$(CXX) $(ALL_CXXFLAGS) $(ALL_CPPFLAGS) -o $@ -c $<
+else
 %.o : %.c
 	$(CC) $(ALL_CFLAGS) $(ALL_CPPFLAGS) -MM -MP -MF $*.d -MT "$@" $<
 	$(CC) $(ALL_CFLAGS) $(ALL_CPPFLAGS) -o $@ -c $<
@@ -439,6 +501,7 @@ WINDRES ?= windres
 %.o : %.cpp
 	$(CXX) $(ALL_CXXFLAGS) $(ALL_CPPFLAGS) -MM -MP -MF $*.d -MT "$@" $<
 	$(CXX) $(ALL_CXXFLAGS) $(ALL_CPPFLAGS) -o $@ -c $<
+endif
 
 %.sol : %.map $(MAPC_TARG)
 	$(MAPC) $< data
@@ -451,7 +514,48 @@ WINDRES ?= windres
 
 #------------------------------------------------------------------------------
 
+ifeq ($(PLATFORM),vita)
+all: neverputt.vpk neverball.vpk
+
+neverputt.vpk: neverputt.velf
+	vita-make-fself -c -s $< build/eboot.bin
+	vita-mksfoex -s TITLE_ID=NEVERPUTT -d ATTRIBUTE2=12 "Neverputt" build/sce_sys/param.sfo
+	vita-pack-vpk -s build/sce_sys/param.sfo -b build/eboot.bin \
+		--add build/sce_sys/icon0.png=sce_sys/icon0.png \
+		--add build/sce_sys/livearea/contents/bg.png=sce_sys/livearea/contents/bg.png \
+		--add build/sce_sys/livearea/contents/startup.png=sce_sys/livearea/contents/startup.png \
+		--add build/sce_sys/livearea/contents/template.xml=sce_sys/livearea/contents/template.xml \
+		neverputt.vpk
+	
+neverball.vpk: neverball.velf
+	vita-make-fself -c -s $< build2/eboot.bin
+	vita-mksfoex -s TITLE_ID=NEVERBALL -d ATTRIBUTE2=12 "Neverball" build2/sce_sys/param.sfo
+	vita-pack-vpk -s build2/sce_sys/param.sfo -b build2/eboot.bin \
+		--add build2/sce_sys/icon0.png=sce_sys/icon0.png \
+		--add build2/sce_sys/livearea/contents/bg.png=sce_sys/livearea/contents/bg.png \
+		--add build2/sce_sys/livearea/contents/startup.png=sce_sys/livearea/contents/startup.png \
+		--add build2/sce_sys/livearea/contents/template.xml=sce_sys/livearea/contents/template.xml \
+		neverball.vpk
+	
+neverball.velf: neverball.elf
+	cp $< $<.unstripped.elf
+	$(PREFIX)-strip -g $<
+	vita-elf-create $< $@
+	
+neverputt.velf: neverputt.elf
+	cp $< $<.unstripped.elf
+	$(PREFIX)-strip -g $<
+	vita-elf-create $< $@
+
+neverball.elf: $(BALL_TARG) $(MAPC_TARG) sols locales desktops
+	cp $(BALL_TARG) neverball.elf
+
+neverputt.elf: $(PUTT_TARG) $(MAPC_TARG) sols locales desktops
+	cp $(PUTT_TARG) neverputt.elf
+
+else
 all : $(BALL_TARG) $(PUTT_TARG) $(MAPC_TARG) sols locales desktops
+endif
 
 ifeq ($(ENABLE_HMD),libovr)
 LINK := $(CXX) $(ALL_CXXFLAGS)
@@ -491,10 +595,15 @@ clean-src :
 	$(RM) $(BALL_TARG) $(PUTT_TARG) $(MAPC_TARG)
 	find . \( -name '*.o' -o -name '*.d' \) -delete
 
+ifeq ($(PLATFORM),vita)
+clean :
+	@rm -rf $(BALL_OBJS) $(PUTT_OBJS) $(MAPC_OBJS)
+else
 clean : clean-src
 	$(RM) $(SOLS)
 	$(RM) $(DESKTOPS)
 	$(MAKE) -C po clean
+endif
 
 #------------------------------------------------------------------------------
 

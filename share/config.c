@@ -131,8 +131,13 @@ static struct
 } option_d[] = {
     { &CONFIG_FULLSCREEN,   "fullscreen",   0 },
     { &CONFIG_DISPLAY,      "display",      0 },
+#ifdef __vita__
+    { &CONFIG_WIDTH,        "width",        960 },
+    { &CONFIG_HEIGHT,       "height",       544 },
+#else
     { &CONFIG_WIDTH,        "width",        800 },
     { &CONFIG_HEIGHT,       "height",       600 },
+#endif
     { &CONFIG_STEREO,       "stereo",       0 },
     { &CONFIG_CAMERA,       "camera",       0 },
     { &CONFIG_TEXTURES,     "textures",     1 },
@@ -141,7 +146,11 @@ static struct
     { &CONFIG_MIPMAP,       "mipmap",       1 },
     { &CONFIG_ANISO,        "aniso",        8 },
     { &CONFIG_BACKGROUND,   "background",   1 },
+#ifdef __vita__
+    { &CONFIG_SHADOW,       "shadow",       0 },
+#else
     { &CONFIG_SHADOW,       "shadow",       1 },
+#endif
     { &CONFIG_AUDIO_BUFF,   "audio_buff",   AUDIO_BUFF_HI },
 #if defined(__MOBILE__) && defined(__APPLE__)
     { &CONFIG_MOUSE_SENSE,  "mouse_sense",  400 },
@@ -176,7 +185,22 @@ static struct
     { &CONFIG_JOYSTICK_AXIS_Y0_INVERT, "joystick_axis_y0_invert", 0 },
     { &CONFIG_JOYSTICK_AXIS_X1_INVERT, "joystick_axis_x1_invert", 0 },
     { &CONFIG_JOYSTICK_AXIS_Y1_INVERT, "joystick_axis_y1_invert", 0 },
-
+#ifdef __vita__
+	{ &CONFIG_JOYSTICK_BUTTON_A,      "joystick_button_a",      2 },
+    { &CONFIG_JOYSTICK_BUTTON_B,      "joystick_button_b",      1 },
+    { &CONFIG_JOYSTICK_BUTTON_X,      "joystick_button_x",      3 },
+    { &CONFIG_JOYSTICK_BUTTON_Y,      "joystick_button_y",      0 },
+    { &CONFIG_JOYSTICK_BUTTON_L1,     "joystick_button_l1",     4 },
+    { &CONFIG_JOYSTICK_BUTTON_R1,     "joystick_button_r1",     5 },
+    { &CONFIG_JOYSTICK_BUTTON_L2,     "joystick_button_l2",     -1 },
+    { &CONFIG_JOYSTICK_BUTTON_R2,     "joystick_button_r2",     -1 },
+    { &CONFIG_JOYSTICK_BUTTON_SELECT, "joystick_button_select", 10 },
+    { &CONFIG_JOYSTICK_BUTTON_START,  "joystick_button_start",  11 },
+    { &CONFIG_JOYSTICK_DPAD_L,        "joystick_dpad_l",       7 },
+    { &CONFIG_JOYSTICK_DPAD_R,        "joystick_dpad_r",       9 },
+    { &CONFIG_JOYSTICK_DPAD_U,        "joystick_dpad_u",       8 },
+    { &CONFIG_JOYSTICK_DPAD_D,        "joystick_dpad_d",       6 },
+#else
     { &CONFIG_JOYSTICK_BUTTON_A,      "joystick_button_a",      0 },
     { &CONFIG_JOYSTICK_BUTTON_B,      "joystick_button_b",      1 },
     { &CONFIG_JOYSTICK_BUTTON_X,      "joystick_button_x",      2 },
@@ -191,7 +215,7 @@ static struct
     { &CONFIG_JOYSTICK_DPAD_R,        "joystick_dpad_r",       -1 },
     { &CONFIG_JOYSTICK_DPAD_U,        "joystick_dpad_u",       -1 },
     { &CONFIG_JOYSTICK_DPAD_D,        "joystick_dpad_d",       -1 },
-
+#endif
     { &CONFIG_KEY_CAMERA_1,      "key_camera_1",      SDLK_1 },
     { &CONFIG_KEY_CAMERA_2,      "key_camera_2",      SDLK_2 },
     { &CONFIG_KEY_CAMERA_3,      "key_camera_3",      SDLK_3 },
