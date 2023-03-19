@@ -22,3 +22,11 @@
 /assets
 
 .DS_Store
+
+build/
+build2/
+*.bin
+*.elf
+*.vpk
+*.velf
+po/*

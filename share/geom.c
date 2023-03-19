@@ -17,7 +17,6 @@
 #include <string.h>
 #include <math.h>
 #include <stdarg.h>
-
 #include "glext.h"
 #include "geom.h"
 #include "ball.h"
@@ -478,8 +477,11 @@ void beam_draw(struct s_rend *rend, const GLfloat *p,
 void goal_draw(struct s_rend *rend, const GLfloat *p, GLfloat r, GLfloat h, GLfloat t)
 {
     GLfloat height = (hmd_stat() ? 0.3f : 1.0f) * video.device_h;
-
+#ifdef __vita__
+	glPointSize(height / 24);
+#else
     glPointSize(height / 6);
+#endif
 
     glPushMatrix();
     {
@@ -493,8 +495,11 @@ void goal_draw(struct s_rend *rend, const GLfloat *p, GLfloat r, GLfloat h, GLfl
 void jump_draw(struct s_rend *rend, const GLfloat *p, GLfloat r, GLfloat h)
 {
     GLfloat height = (hmd_stat() ? 0.3f : 1.0f) * video.device_h;
-
+#ifdef __vita__
     glPointSize(height / 12);
+#else
+    glPointSize(height / 24);
+#endif
 
     glPushMatrix();
     {

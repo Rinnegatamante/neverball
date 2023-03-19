@@ -237,8 +237,9 @@ void part_draw_coin(struct s_rend *rend)
 #else
     glBindBuffer_(GL_ARRAY_BUFFER, 0);
 #endif
-
+#ifndef __vita__
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+#endif
     glDisableClientState(GL_NORMAL_ARRAY);
     glEnableClientState(GL_COLOR_ARRAY);
     {
@@ -252,9 +253,7 @@ void part_draw_coin(struct s_rend *rend)
         glVertexPointer(3, GL_FLOAT, sizeof (struct part_draw), coin_draw[0].p);
 #endif
 
-#ifndef __vita__
         glEnable(GL_POINT_SPRITE);
-#endif
         {
 #ifndef __vita__
             const GLfloat c[3] = { 0.0f, 0.0f, 1.0f };
@@ -266,9 +265,7 @@ void part_draw_coin(struct s_rend *rend)
 
             glDrawArrays(GL_POINTS, 0, PART_MAX_COIN);
         }
-#ifndef __vita__
         glDisable(GL_POINT_SPRITE);
-#endif
     }
     glDisableClientState(GL_COLOR_ARRAY);
     glEnableClientState(GL_NORMAL_ARRAY);
