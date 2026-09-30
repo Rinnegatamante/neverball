@@ -35,6 +35,13 @@
 #endif
 
 #ifdef __vita__
+#include <sys/stat.h>
+
+FILE *__real_fopen(const char *path, const char *mode);
+DIR *__real_opendir(const char *path);
+int __real_mkdir(const char *path, mode_t mode);
+int __real_remove(const char *path);
+
 int newlib_heap_size_user = 256 * 1024 * 1024;
 FILE *__wrap_fopen(const char *fname, char *mode) {
 	if (!fname)
@@ -90,7 +97,7 @@ DIR *__wrap_opendir(const char *fname) {
 
 int __wrap_mkdir(const char *fname, mode_t mode) {
 	if (!fname)
-		return NULL;
+		return 0;
 	//printf("mkdir %s\n", fname);
 	if (fname[0] == '.') {
 		char real_fname[256];
@@ -107,7 +114,7 @@ int __wrap_mkdir(const char *fname, mode_t mode) {
 
 int __wrap_remove(const char *fname) {
 	if (!fname)
-		return NULL;
+		return 0;
 	//printf("remove %s\n", fname);
 	if (fname[0] == '.') {
 		char real_fname[256];

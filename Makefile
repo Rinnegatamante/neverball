@@ -105,8 +105,14 @@ ALL_CXXFLAGS := -fno-rtti -fno-exceptions $(CXXFLAGS)
 
 # Preprocessor...
 
+ifeq ($(PLATFORM),vita)
+PKG_CONFIG = arm-vita-eabi-pkg-config
+SDL_CPPFLAGS := $(shell $(PKG_CONFIG) --cflags sdl2)
+PNG_CPPFLAGS := $(shell $(PKG_CONFIG) --cflags libpng)
+else
 SDL_CPPFLAGS := $(shell sdl2-config --cflags)
 PNG_CPPFLAGS := $(shell libpng-config --cflags)
+endif
 
 ALL_CPPFLAGS := $(SDL_CPPFLAGS) $(PNG_CPPFLAGS) -Ishare
 
@@ -267,6 +273,14 @@ endif
 
 ALL_LIBS := $(HMD_LIBS) $(TILT_LIBS) $(INTL_LIBS) $(TTF_LIBS) \
 	$(OGG_LIBS) $(SDL_LIBS) $(OGL_LIBS) $(BASE_LIBS)
+
+ifeq ($(PLATFORM),vita)
+ALL_LIBS := -Wl,--start-group $(ALL_LIBS) $(shell $(PKG_CONFIG) --static --libs SDL2_ttf vorbisfile)
+ifneq ($(ENABLE_NLS),0)
+ALL_LIBS += -lintl
+endif
+ALL_LIBS += -Wl,--end-group
+endif
 
 MAPC_LIBS := $(BASE_LIBS)
 
@@ -547,10 +561,11 @@ neverputt.velf: neverputt.elf
 	$(PREFIX)-strip -g $<
 	vita-elf-create $< $@
 
-neverball.elf: $(BALL_TARG) $(MAPC_TARG) sols locales desktops
+# VPKs use separately installed data; native asset tools cannot run as Vita binaries.
+neverball.elf: $(BALL_TARG)
 	cp $(BALL_TARG) neverball.elf
 
-neverputt.elf: $(PUTT_TARG) $(MAPC_TARG) sols locales desktops
+neverputt.elf: $(PUTT_TARG)
 	cp $(PUTT_TARG) neverputt.elf
 
 else
@@ -565,6 +580,10 @@ LINK := $(CXX) $(ALL_CXXFLAGS)
 else
 LINK := $(CC) $(ALL_CFLAGS)
 endif
+endif
+
+ifeq ($(PLATFORM),vita)
+LINK := $(CXX) $(CFLAGS) $(ALL_CXXFLAGS)
 endif
 
 $(BALL_TARG) : $(BALL_OBJS)
